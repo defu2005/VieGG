@@ -16,7 +16,7 @@ File này được cập nhật sau mỗi phần hoàn thành.
 | WSL2 + Ubuntu 24.04 | Đã cài | `wsl -d Ubuntu-24.04` |
 | Swift toolchain (Linux) | Đã cài: Swift 6.4.1 qua `swiftly` | Build và test `RentGGCore`, kiểm tra cú pháp các file SwiftUI (`swiftc -parse`) |
 | Backend để test tích hợp | Đã dựng trong Ubuntu: PostgreSQL 16, OpenJDK 21, Maven 3.8 | Build từ bản sao `/root/rentgg-backend` (không đụng `backend/target` của repo), chạy profile `dev` ở `localhost:8080` |
-| Build toàn app SwiftUI | **Chưa chạy** | Cần macOS: máy Mac có Xcode 15.3+, hoặc GitHub Actions `macos-15` (workflow `.github/workflows/ios.yml`, cần đưa repo lên GitHub) |
+| Build toàn app SwiftUI | **Chưa chạy** | Cần macOS: máy Mac có Xcode 15.3+, hoặc GitHub Actions `macos-15` (workflow `.github/workflows/ios.yml`, repo đã ở https://github.com/defu2005/VieGG) |
 
 ## 2. Kế hoạch và tiến độ
 

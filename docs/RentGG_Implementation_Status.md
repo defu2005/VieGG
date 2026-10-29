@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-10-26 · **Rà soát lại:** 2026-10-29
 **Đối chiếu với:** System Design v1.2, Use Case v8, Validation Checklist v1.0
-**Mã nguồn:** `C:\Users\defu\Documents\RentGG` (chưa khởi tạo git, chưa commit)
+**Mã nguồn:** `C:\Users\defu\Documents\RentGG` · GitHub: https://github.com/defu2005/VieGG (nhánh `main`)
 
 ---
 
@@ -145,7 +145,7 @@ TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test ./mvnw test
 | 14 | Hạn phân xử dispute (`deadline_at`) | Thấp | Đã lưu hạn nhưng chưa có cảnh báo khi quá hạn |
 | 15 | Giới hạn body 1 MB (§12.10) | Thấp | Mới cấu hình phía Tomcat. Chưa kiểm tra riêng cho JSON body |
 | 16 | Chuẩn hóa thông báo (notification) | Thấp | Tiêu đề và nội dung còn đơn giản, chưa có template theo sự kiện |
-| 17 | Kiểm soát phiên bản mã nguồn | Cao | Chưa khởi tạo git. Chưa có CI (build, test, test kiến trúc, quét phụ thuộc theo §17.5) |
+| 17 | CI backend và frontend | Cao | Đã có git và repo GitHub (2026-10-29). Mới có CI cho iOS; chưa có CI build/test backend, frontend, quét phụ thuộc (§17.5) |
 
 ### 4.2. Phase 1 (theo lộ trình §19.1)
 
