@@ -1,0 +1,21 @@
+target/
+.env
+*.log
+.idea/
+*.iml
+.vscode/
+
+# Frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# Android (bổ sung cho android/.gitignore)
+.kotlin/
+
+# Máy cá nhân
+.claude/settings.local.json
+.DS_Store
+Thumbs.db

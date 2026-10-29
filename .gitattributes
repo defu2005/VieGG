@@ -1,0 +1,8 @@
+* text=auto
+# Script chạy trên Linux/macOS/WSL phải giữ LF
+*.sh   text eol=lf
+mvnw   text eol=lf
+gradlew text eol=lf
+# Script Windows giữ CRLF
+*.cmd  text eol=crlf
+*.bat  text eol=crlf

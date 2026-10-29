@@ -1,0 +1,141 @@
+spring:
+  application:
+    name: rentgg
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/rentgg}
+    username: ${SPRING_DATASOURCE_USERNAME:rentgg}
+    password: ${SPRING_DATASOURCE_PASSWORD:rentgg_dev}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      # Largest upload is a 20 MB dispute video; each endpoint enforces its own smaller limit (listing image 1 MB).
+      max-file-size: 20MB
+      # 20 MB file + note + multipart headers
+      max-request-size: 21MB
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+  # Behind Caddy/Nginx: take the client IP from X-Forwarded-For, but only when the request comes from a trusted
+  # proxy (Tomcat RemoteIpValve, default = private/loopback ranges). A proxy elsewhere: set
+  # SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES (regex). Never expose the backend port directly to the internet.
+  forward-headers-strategy: native
+  error:
+    include-stacktrace: never
+  tomcat:
+    max-swallow-size: 2MB
+    max-http-form-post-size: 1MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: rentgg
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+rentgg:
+  order:
+    payment-hold-minutes: 15
+    owner-approval-minutes: 30
+    ending-reminder-minutes: 10
+    otp-note-ttl-minutes: 10
+  rotation:
+    sla-minutes: 60
+  credentials:
+    rate-limit-per-hour: 10
+    require-reauth: false
+    keys: ${RENTGG_CREDENTIAL_KEYS:}
+    active-key-id: ${RENTGG_CREDENTIAL_ACTIVE_KEY_ID:}
+  security:
+    jwt-secret: ${RENTGG_JWT_SECRET:}
+    access-token-ttl: PT15M
+    refresh-token-ttl: P14D
+    cors-allowed-origins: ${RENTGG_CORS_ALLOWED_ORIGINS:}
+  rate-limit:
+    login-per-minute: 5
+    login-per-hour: 20
+    register-per-hour: 10
+    otp-per-hour: 5
+    orders-per-hour: 30
+  approval:
+    ttl: PT72H
+  dispute:
+    resolution-sla: PT72H
+    takeover-resolution-sla: PT4H
+  jobs:
+    enabled: true
+    cron: "0 * * * * *"
+    batch-size: 100
+  outbox:
+    max-attempts: 10
+  payment:
+    provider: ${RENTGG_PAYMENT_PROVIDER:FAKE}
+    webhook-secret: ${RENTGG_PAYMENT_WEBHOOK_SECRET:}
+    public-base-url: ${RENTGG_PUBLIC_BASE_URL:http://localhost:8080}
+    # Where the payer lands after the provider's page (the web app).
+    frontend-base-url: ${RENTGG_FRONTEND_BASE_URL:http://localhost:5273}
+    fake-enabled: ${RENTGG_PAYMENT_FAKE_ENABLED:false}
+    # Each provider is offered once its credentials are set. Endpoints default to the sandboxes.
+    vnpay:
+      tmn-code: ${VNPAY_TMN_CODE:}
+      hash-secret: ${VNPAY_HASH_SECRET:}
+      pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    momo:
+      partner-code: ${MOMO_PARTNER_CODE:}
+      access-key: ${MOMO_ACCESS_KEY:}
+      secret-key: ${MOMO_SECRET_KEY:}
+      endpoint: ${MOMO_ENDPOINT:https://test-payment.momo.vn}
+    zalopay:
+      app-id: ${ZALOPAY_APP_ID:}
+      key1: ${ZALOPAY_KEY1:}
+      key2: ${ZALOPAY_KEY2:}
+      endpoint: ${ZALOPAY_ENDPOINT:https://sb-openapi.zalopay.vn}
+    payos:
+      client-id: ${PAYOS_CLIENT_ID:}
+      api-key: ${PAYOS_API_KEY:}
+      checksum-key: ${PAYOS_CHECKSUM_KEY:}
+      endpoint: ${PAYOS_ENDPOINT:https://api-merchant.payos.vn}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+rentgg:
+  credentials:
+    # Dev-only sample key. Staging/prod refuse to start with this key id.
+    keys: ${RENTGG_CREDENTIAL_KEYS:devkey:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+    active-key-id: ${RENTGG_CREDENTIAL_ACTIVE_KEY_ID:devkey}
+  security:
+    jwt-secret: ${RENTGG_JWT_SECRET:ZGV2LW9ubHktand0LXNlY3JldC1yZW50Z2ctMzItYnl0ZXMtbWluIQ==}
+  payment:
+    webhook-secret: ${RENTGG_PAYMENT_WEBHOOK_SECRET:dev-only-webhook-secret-rentgg-0123456789}
+    fake-enabled: ${RENTGG_PAYMENT_FAKE_ENABLED:true}

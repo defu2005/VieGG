@@ -1,0 +1,53 @@
+# Build app iOS trên máy macOS của GitHub (không cần máy Mac riêng).
+# Chạy test RentGGCore, sinh project bằng XcodeGen, rồi build cho iOS Simulator (không ký).
+name: iOS
+
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Phiên bản Xcode
+        run: xcodebuild -version
+
+      - name: Test RentGGCore
+        working-directory: ios/RentGGCore
+        run: swift test --disable-swift-testing
+
+      - name: Cài XcodeGen
+        run: brew install xcodegen
+
+      - name: Sinh RentGG.xcodeproj
+        run: xcodegen generate
+
+      - name: Build cho iOS Simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project RentGG.xcodeproj \
+            -scheme RentGG \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log
+
+      - name: Lưu log build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios/build.log
+          if-no-files-found: ignore

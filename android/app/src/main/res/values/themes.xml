@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.RentGG" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FFFF6A00</item>
+        <item name="android:windowBackground">#FFF6F6F8</item>
+    </style>
+</resources>

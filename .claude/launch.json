@@ -1,0 +1,65 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rentgg-db",
+      "runtimeExecutable": "C:\\Users\\defu\\AppData\\Local\\rentgg-tools\\pg16\\pgsql\\bin\\postgres.exe",
+      "runtimeArgs": ["-D", "C:\\Users\\defu\\AppData\\Local\\rentgg-tools\\pgdata", "-p", "5432"],
+      "port": 5432, "autoPort": false
+    },
+    {
+      "name": "rentgg-backend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "backend\\mvnw.cmd -o -q -f backend\\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--server.port=8080"],
+      "port": 8080, "autoPort": false
+    },
+    {
+      "name": "rentgg-frontend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_TARGET=http://localhost:8080&& npm --prefix frontend run dev -- --port 5273 --strictPort"],
+      "port": 5273, "autoPort": false
+    },
+    {
+      "name": "rentgg-backend-8081",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "backend\\mvnw.cmd -o -q -f backend\\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--server.port=8081"],
+      "port": 8081, "autoPort": false
+    },
+    {
+      "name": "rentgg-backend-alt",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "backend\\mvnw.cmd -o -q -f backend\\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--server.port=8093"],
+      "port": 8093, "autoPort": false
+    },
+    {
+      "name": "rentgg-frontend-alt",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_TARGET=http://localhost:8093&& npm --prefix frontend run dev -- --port 5283 --strictPort"],
+      "port": 5283, "autoPort": false
+    },
+    {
+      "name": "rentgg-frontend-ui",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_TARGET=http://localhost:8103&& npm --prefix frontend run dev -- --port 5293 --strictPort"],
+      "port": 5293, "autoPort": false
+    },
+    {
+      "name": "rentgg-backend-ui",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "backend\\mvnw.cmd -o -q -f backend\\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--server.port=8103"],
+      "port": 8103, "autoPort": false
+    },
+    {
+      "name": "rentgg-backend-media",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/rentgg_media_ui&& backend\\mvnw.cmd -o -q -f backend\\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--server.port=8113"],
+      "port": 8113, "autoPort": false
+    },
+    {
+      "name": "rentgg-frontend-media",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_TARGET=http://localhost:8113&& npm --prefix frontend run dev -- --port 5303 --strictPort"],
+      "port": 5303, "autoPort": false
+    }
+  ]
+}

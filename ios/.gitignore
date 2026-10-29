@@ -1,0 +1,11 @@
+# Sinh bởi XcodeGen từ project.yml
+RentGG.xcodeproj/
+RentGG/Info.plist
+
+# Build
+build/
+DerivedData/
+.build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/

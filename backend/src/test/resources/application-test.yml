@@ -1,0 +1,36 @@
+rentgg:
+  jobs:
+    enabled: false
+  rate-limit:
+    login-per-minute: 1000
+    login-per-hour: 10000
+    register-per-hour: 10000
+    otp-per-hour: 5
+    orders-per-hour: 10000
+  credentials:
+    keys: testkey:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    active-key-id: testkey
+  security:
+    jwt-secret: dGVzdC1vbmx5LWp3dC1zZWNyZXQtcmVudGdnLTMyLWJ5dGVzLW1pbiE=
+  payment:
+    webhook-secret: test-only-webhook-secret-rentgg-0123456789
+    provider: FAKE
+    fake-enabled: true
+    vnpay:
+      tmn-code: TESTTMN1
+      hash-secret: TESTVNPAYHASHSECRET0123456789ABCD
+    zalopay:
+      app-id: "2553"
+      key1: test-zalopay-key1
+      key2: test-zalopay-key2
+
+spring:
+  flyway:
+    clean-disabled: false
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+
+logging:
+  level:
+    com.rentgg: WARN

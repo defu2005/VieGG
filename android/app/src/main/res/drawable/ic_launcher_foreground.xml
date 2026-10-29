@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Biểu tượng tay cầm game đơn giản trong vùng an toàn 66dp của adaptive icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,44 h48 a10,10 0 0 1 10,10 v6 a10,10 0 0 1 -17,7 l-4,-4 h-26 l-4,4 a10,10 0 0 1 -17,-7 v-6 a10,10 0 0 1 10,-10 z" />
+    <path
+        android:fillColor="#FF6A00"
+        android:pathData="M38,51 h4 v4 h4 v4 h-4 v4 h-4 v-4 h-4 v-4 h4 z" />
+    <path
+        android:fillColor="#FF6A00"
+        android:pathData="M64,56 m-3,0 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 M72,60 m-3,0 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0" />
+</vector>
