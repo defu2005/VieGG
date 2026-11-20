@@ -36,6 +36,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,6 +76,7 @@ public class OrderService {
     private final MeterRegistry meters;
     private final RentGgProperties props;
     private final TransactionTemplate tx;
+    private final NamedParameterJdbcTemplate jdbc;
     private final Clock clock;
 
     public OrderService(OrderRepository orders, ListingService listings, CatalogService catalog,
@@ -81,7 +84,8 @@ public class OrderService {
                         DepositService deposits, PaymentService payments, LedgerService ledger, OutboxService outbox,
                         AuditService audit, ObjectProvider<OrderLifecycleListener> lifecycleListeners,
                         OrderExtensionService extensions, MeterRegistry meters,
-                        RentGgProperties props, TransactionTemplate tx, Clock clock) {
+                        RentGgProperties props, TransactionTemplate tx, NamedParameterJdbcTemplate jdbc, Clock clock) {
+        this.jdbc = jdbc;
         this.orders = orders;
         this.extensions = extensions;
         this.listings = listings;
@@ -230,6 +234,12 @@ public class OrderService {
         Order o = new Order(listingId, listing.gameAccountId(), listing.gameId(), renter.id(), listing.ownerId(),
                 startAt, scheduledEnd, blockEnd, rent, fee, listing.depositAmount(), snapshot,
                 now.plus(Duration.ofMinutes(props.order().paymentHoldMinutes())), idempotencyKey, now);
+        // Queue bookings of one account calendar behind the same lock the orders trigger and owner busy-time use. Without
+        // it, overlapping inserts wait on each other's uncommitted rows, and the flush that follows the insert in this
+        // transaction closes the cycle: PostgreSQL then kills one side with 40P01 instead of the clean 23P01 conflict.
+        // With the lock, the loser runs after the winner commits and gets SLOT_UNAVAILABLE from the exclusion constraint.
+        jdbc.query("select account_calendar_lock(:account)",
+                new MapSqlParameterSource("account", listing.gameAccountId()), rs -> null);
         try {
             // Reservation = INSERT. The exclusion constraint is the final arbiter (§15.2).
             orders.saveAndFlush(o);

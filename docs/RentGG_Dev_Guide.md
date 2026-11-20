@@ -37,7 +37,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Làm gì:** `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test`
 - **Khu vực:** `backend/src/test/`
 - **Xong khi:** ghi lại số test chạy, số lỗi, số bỏ qua; mọi test đỏ có ghi chú nguyên nhân.
-- **Kết quả thực tế (2026-11-20):** CHƯA CHẠY CỤC BỘ. Database `rentgg_test` chưa có, role `rentgg` không có quyền CREATEDB, và không có thông tin tài khoản superuser để tạo. Không ghi số liệu. Baseline = CI (mục 1.2). Agent cloud phải làm bước 0 là chạy test trên Postgres service và ghi số liệu thật vào đây.
+- **Kết quả thực tế (2026-11-20, nhánh `fix/order-slot-concurrency` tách từ `dev`, PostgreSQL 16.15 cục bộ):** `Tests run: 116, Failures: 0, Errors: 0, Skipped: 0`, exit 0. Trước khi sửa, `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` đỏ do deadlock (`40P01`) khi 10 đơn đồng thời vào cùng account; đã sửa trong `OrderService.create` bằng khóa `account_calendar_lock` trước khi chèn. Chạy lặp `MoneyAndApprovalIT` 10/10 lần xanh.
 - **Kiểm thử:** chính lệnh trên `[M]` (DB thật cục bộ nhưng không gọi dịch vụ ngoài).
 
 ### 1.2 CI xanh lần đầu
