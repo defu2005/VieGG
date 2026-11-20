@@ -1,6 +1,6 @@
 # RentGG — hướng dẫn cho Codex
 
-## Môi trường dev chuẩn (BẮT BUỘC dùng cho mọi phiên)
+## Môi trường dev chuẩn (BẮT BUỘC trên máy Windows; cloud xem mục bên dưới)
 
 Mọi phiên làm việc — backend, frontend, Android, iOS — dùng chung đúng bộ dưới đây. Không tự dựng database mới, không đổi cổng chuẩn.
 
@@ -41,3 +41,19 @@ Tài liệu cho người: "Hướng dẫn chạy RentGG" — https://claude.ai/a
 
 ## Production
 Triển khai: `docs/RentGG_Production_Deploy.md` (stack `deploy/`, ảnh/video trên R2 khi `RENTGG_MEDIA_STORAGE=s3`; dev giữ `db`).
+
+## Môi trường cloud (Linux, agent từ xa)
+
+Áp dụng cho agent chạy trên cloud (không có máy Windows, không có `preview_start`). Không làm theo các mục Windows ở trên.
+
+- **Database:** tạo PostgreSQL 16 trong CI hoặc container cục bộ với user `rentgg`/`rentgg_dev`, cổng 5432. Sao chép cấu hình service trong `.github/workflows/backend.yml`.
+- **Backend test:** `cd backend && ./mvnw -B test` với `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev`.
+- **Web:** `cd frontend && npm ci && npm run typecheck && npm run build`, giống `.github/workflows/web.yml`.
+- **Không có Docker daemon** trong môi trường mặc định: bỏ qua các bước Docker, ghi rõ là chưa chạy.
+
+### Quy tắc làm việc cho agent
+1. Làm việc trên nhánh con tách từ `dev`; mở PR vào `dev`. **Không push `main`.** Không chạy `deploy.yml`.
+2. **Không sửa migration V1–V30.** Migration mới đánh số từ V31; mỗi thời điểm chỉ một agent được tạo migration.
+3. Test xanh trước khi mở PR. Nếu test đỏ sẵn từ baseline, ghi rõ trong PR, không che lỗi.
+4. Không đưa giá trị thật vào file được commit (`.env`, `deploy/.env.prod`, keystore, khóa PSP/S3). Dùng giá trị mock trong test.
+5. Khi xong một mục trong `docs/RentGG_Dev_Guide.md`, đánh dấu mục đó và ghi kết quả test.

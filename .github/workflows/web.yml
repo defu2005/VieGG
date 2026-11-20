@@ -27,4 +27,4 @@ jobs:
       - run: npm run build
       - name: Validate Caddyfile
         working-directory: deploy
-        run: docker run --rm -e RENTGG_DOMAIN=example.com -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10-alpine caddy validate --config /etc/caddy/Caddyfile
+        run: docker run --rm -e RENTGG_DOMAIN=example.com -e ACME_EMAIL=ci@example.com -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10-alpine caddy validate --config /etc/caddy/Caddyfile
