@@ -79,6 +79,35 @@ $DC exec backup backup.sh now   # sao lưu ngay
 ```
 Cập nhật code: `git pull && $DC up -d --build` (hoặc bấm workflow **Deploy**).
 
+### B1a. Vai trò cơ sở dữ liệu (Dev Guide §2.2)
+- Ứng dụng chạy bằng `rentgg_app` (chỉ DML, không TRUNCATE/DROP/CREATE/ALTER). Flyway chạy bằng `rentgg_migrator`, là chủ sở hữu các bảng. `rentgg` vẫn là superuser của container, dùng cho sao lưu, khôi phục và `make-admin.sh`.
+- Mẫu: điền `DB_MIGRATOR_PASSWORD` và `DB_APP_PASSWORD` trong `.env.prod` (khác `DB_PASSWORD`). Định nghĩa vai trò ở `deploy/db/roles.sql`; `deploy/db/init-roles.sh` chạy khi volume Postgres còn trống.
+- **Volume đã có dữ liệu** (`init-roles.sh` không chạy lại): làm một lần bằng tay, trên VPS trong `~/rentgg/deploy`:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db \
+  psql -v ON_ERROR_STOP=1 -U rentgg -d rentgg -f /opt/rentgg/db/roles.sql
+```
+
+Sau đó đặt mật khẩu và chuyển quyền sở hữu bảng và sequence cho `rentgg_migrator`:
+
+```sql
+ALTER ROLE rentgg_migrator WITH LOGIN PASSWORD '<DB_MIGRATOR_PASSWORD>';
+ALTER ROLE rentgg_app WITH LOGIN PASSWORD '<DB_APP_PASSWORD>';
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO rentgg_migrator', r.tablename);
+  END LOOP;
+  FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO rentgg_migrator', r.sequencename);
+  END LOOP;
+END $$;
+```
+
+  Hàm trigger (ví dụ `orders_check_account_blocks`) vẫn thuộc `rentgg`. Migration sau này sửa các hàm đó cần chuyển quyền sở hữu tương tự.
+- `restore.sh` khôi phục với `--role=rentgg_migrator`, để bảng sau khôi phục vẫn thuộc migrator. Bản khôi phục cũ (trước thay đổi này) có bảng thuộc `rentgg`: chạy lại lệnh chuyển quyền sở hữu ở trên trước khi khởi động app.
+- Kiểm chứng (cục bộ, không Docker): `DbRolesIT` 5/5; full suite 226/0/0; full suite với `rentgg_app` và Flyway bằng `rentgg_migrator` 221/0/0 (lúc đó auth là trust); khởi động prod với `rentgg_app` (xác thực scram) thành công; khôi phục với `--role` cho chủ sở hữu đúng.
+
 ### B2. Lưu trữ ảnh/video
 - `RENTGG_MEDIA_STORAGE=s3` (mặc định trên profile `prod`): ảnh mới lên R2, DB chỉ giữ khoá. API không đổi nên web/Android/iOS không phải sửa.
 - Dev giữ `db` như cũ.

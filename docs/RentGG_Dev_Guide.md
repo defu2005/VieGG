@@ -119,6 +119,16 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Hiện trạng:** chưa có `rentgg_app` hay `rentgg_migrator` trong `deploy/` và `backend/`.
 - **Xong khi:** migration chạy bằng `rentgg_migrator`, ứng dụng chạy bằng `rentgg_app`, và `rentgg_app` bị từ chối khi `TRUNCATE`.
 - **Kiểm thử:** `[M]` với Postgres cục bộ (tạo hai role trong DB test); `[S]` không áp dụng.
+- **Kết quả (2026-11-20, nhánh `claude/row-03-db-roles`): ĐÃ LÀM, trừ phần Docker.**
+  - Thay đổi: `deploy/db/roles.sql` (idempotent, không mật khẩu, không tên DB; `GRANT CONNECT, CREATE ON DATABASE` lấy từ `current_database()` vì V1 cần extension `btree_gist`); `deploy/db/init-roles.sh` (đặt mật khẩu qua biến psql); compose: app dùng `rentgg_app`, `SPRING_FLYWAY_USER=rentgg_migrator`; `restore.sh` dùng `--role=rentgg_migrator`; `.env.prod.example` có hai biến mới; `application.yml` chỉ thêm chú thích.
+  - Lệch khỏi thiết kế ban đầu: không mount cả `deploy/db` vào `initdb.d`, vì entrypoint chạy mọi `.sql` ở đó và `roles.sql` sẽ chạy trước khi có mật khẩu. Chỉ `init-roles.sh` vào `initdb.d`; `roles.sql` mount vào `/opt/rentgg/db/`.
+  - `DbRolesIT` (5 test, JDBC thuần): Flyway chạy bằng `rentgg_migrator` từ DB rỗng; `rentgg_app` có DML, không có TRUNCATE trên mọi bảng; `SELECT` thật; TRUNCATE, DROP, CREATE, ALTER đều bị `42501`; migrator vẫn TRUNCATE được; `installed_by` của lịch sử Flyway là `rentgg_migrator`. Không đặt `TEST_DB_URL`: skip có lý do (`@EnabledIf`). Trong CI (`CI` đặt): fail nếu thiếu DB hoặc quyền tạo role.
+  - Negative control: thêm `ALTER DEFAULT PRIVILEGES ... GRANT TRUNCATE ON TABLES TO rentgg_app` làm 2 test fail. Control đầu tiên (`GRANT ... ON ALL TABLES`, chạy trước khi có bảng) không có tác dụng và bị loại.
+  - Full suite bình thường (`rentgg`): 226 test, 0 fail, 0 lỗi.
+  - Full suite với `TEST_DB_USERNAME=rentgg_app`, Flyway bằng `rentgg_migrator`, trên DB chuẩn bị bằng `roles.sql` (auth trust): 221 test, 0 fail, 0 lỗi. Lịch sử Flyway: `rentgg_migrator`; bảng thuộc `rentgg_migrator`.
+  - Auth scram-sha-256 (TCP): mật khẩu đúng đăng nhập được, sai bị từ chối (`init-roles.sh` trên DB mới). `DbRolesIT` 5/5 và khởi động prod với `rentgg_app` đều chạy lại dưới scram và pass / Started.
+  - Khôi phục: `pg_restore --no-owner` không có `--role` làm mọi bảng thành `rentgg`, và `rentgg_migrator` mất quyền đọc `flyway_schema_history` (đã chứng minh). Với `--role=rentgg_migrator` từ DB đã chuẩn bị roles: bảng thuộc migrator, quyền app đúng, migrator đọc được 30 dòng lịch sử.
+  - Giới hạn: phần Docker chưa chạy (không có daemon); compose chỉ kiểm tra cú pháp YAML. Volume đã có dữ liệu cần làm tay (xem `docs/RentGG_Production_Deploy.md` B1a). `rentgg_app` có DML trên `flyway_schema_history`. Hàm trigger vẫn thuộc `rentgg`. Cục bộ: role `rentgg` được đặt SUPERUSER (CI cũng là superuser); `DbRolesIT` đặt lại mật khẩu cả hai role trên toàn cluster.
 
 ### 2.3 Swagger và API docs trên staging/prod (§11.1)
 - **Hiện trạng:** `application.yml` đã tắt `springdoc` cho profile `prod`. `StartupSafetyCheck` đã nhận diện `staging` là profile hợp lệ, nhưng `application.yml` chưa có khối `staging`, nên Swagger vẫn bật trên staging. Đây là việc thật, không phải việc tùy chọn.

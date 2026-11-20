@@ -16,6 +16,9 @@ services:
       POSTGRES_DB: rentgg
       POSTGRES_USER: rentgg
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      # Mật khẩu của hai vai trò ứng dụng; init-roles.sh đặt khi volume còn trống.
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
       TZ: UTC
     # Hợp với VPS 4 GB, phần còn lại cho JVM.
     command: >
@@ -25,7 +28,11 @@ services:
       -c work_mem=8MB
       -c maintenance_work_mem=128MB
       -c max_connections=60
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    # roles.sql không nằm trong initdb.d: entrypoint chạy mọi .sql ở đó, mà lúc đó chưa có mật khẩu.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
+      - ./db/roles.sql:/opt/rentgg/db/roles.sql:ro
     # Không mở cổng ra ngoài: chỉ app và backup trong mạng nội bộ của compose truy cập được.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rentgg -d rentgg"]
@@ -42,8 +49,11 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/rentgg
-      SPRING_DATASOURCE_USERNAME: rentgg
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Ứng dụng chạy bằng rentgg_app (không DDL); Flyway chạy bằng rentgg_migrator.
+      SPRING_DATASOURCE_USERNAME: rentgg_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
+      SPRING_FLYWAY_USER: rentgg_migrator
+      SPRING_FLYWAY_PASSWORD: ${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}
       JAVA_OPTS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
       TZ: UTC
     # Không publish cổng: Caddy gọi app:8080 trong mạng nội bộ.

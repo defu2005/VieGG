@@ -1,6 +1,7 @@
 spring:
   application:
     name: rentgg
+  # Prod: app chạy bằng rentgg_app, Flyway bằng rentgg_migrator (SPRING_FLYWAY_USER); xem deploy/db/roles.sql.
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/rentgg}
     username: ${SPRING_DATASOURCE_USERNAME:rentgg}
