@@ -325,4 +325,70 @@ class StartupSafetyCheckTest {
     void devProfileCannotBeCombinedWithProd() {
         assertRefused(validVars(), new String[] {"dev", "prod"}, "must not be combined");
     }
+    // ---- Secrets: dev default, placeholder text and single repeated character (advisor-specified, Dev Guide §2.0)
+
+    static final String DEV_JWT = "ZGV2LW9ubHktand0LXNlY3JldC1yZW50Z2ctMzItYnl0ZXMtbWluIQ==";
+
+    @ParameterizedTest
+    @ValueSource(strings = {"prod", "staging"})
+    void devJwtDefaultRefused(String profile) {
+        Map<String, String> v = validVars();
+        v.put("RENTGG_JWT_SECRET", DEV_JWT);
+        assertRefused(v, profile, "RENTGG_JWT_SECRET must not be the dev default on staging/prod");
+    }
+
+    @Test
+    void devJwtDefaultAcceptedOnDevProfile() {
+        Map<String, String> v = validVars();
+        v.put("RENTGG_JWT_SECRET", DEV_JWT);
+        v.put("RENTGG_PAYMENT_PROVIDER", "FAKE");
+        v.put("RENTGG_PAYMENT_FAKE_ENABLED", "true");
+        v.put("RENTGG_MEDIA_STORAGE", "db");
+        assertThatCode(() -> check(v, "dev").check()).doesNotThrowAnyException();
+    }
+
+    static Stream<Arguments> placeholderSecrets() {
+        String jwtChangeme = "changeme".repeat(6);       // 48 base64 chars = 36 bytes
+        String jwtExample = "example".repeat(8);         // 56 base64 chars = 42 bytes
+        return Stream.of(
+                Arguments.of("RENTGG_JWT_SECRET", jwtChangeme),
+                Arguments.of("RENTGG_JWT_SECRET", jwtExample),
+                Arguments.of("RENTGG_PAYMENT_WEBHOOK_SECRET", "changeme-changeme-changeme-changeme-x"),
+                Arguments.of("RENTGG_PAYMENT_WEBHOOK_SECRET", "my-example-webhook-secret-0123456789"),
+                Arguments.of("RENTGG_PAYMENT_WEBHOOK_SECRET", "ACCOUNT_ID-webhook-secret-0123456789"),
+                Arguments.of("RENTGG_CREDENTIAL_KEYS", "k202611:changeme-changeme-changeme-changeme"),
+                Arguments.of("RENTGG_CREDENTIAL_KEYS", "k202611:example-keyvalue-0123456789abcdef"),
+                Arguments.of("RENTGG_CREDENTIAL_KEYS", "k202611:ACCOUNT_ID-keyvalue-0123456789abcd"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("placeholderSecrets")
+    void placeholderSecretRefused(String varName, String value) {
+        Map<String, String> v = validVars();
+        v.put(varName, value);
+        assertThatThrownBy(() -> check(v, "prod").check())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(varName + " still holds a placeholder value")
+                .hasMessageNotContaining(value);
+    }
+
+    @Test
+    void singleRepeatedCharacterSecretsRefused() {
+        Map<String, String> jwt = validVars();
+        jwt.put("RENTGG_JWT_SECRET", "x".repeat(44));    // decodes to 33 bytes, but one distinct character
+        assertRefused(jwt, "prod", "RENTGG_JWT_SECRET still holds a placeholder value");
+
+        Map<String, String> webhook = validVars();
+        webhook.put("RENTGG_PAYMENT_WEBHOOK_SECRET", "x".repeat(36));
+        assertRefused(webhook, "staging", "RENTGG_PAYMENT_WEBHOOK_SECRET still holds a placeholder value");
+    }
+
+    @Test
+    void mixedCaseXxxIsNotAPlaceholderForSecrets() {
+        // "xxx" is excluded on purpose for secrets: random base64 contains it now and then.
+        Map<String, String> v = validVars();
+        v.put("RENTGG_JWT_SECRET", Base64.getEncoder().encodeToString("0123456789xXx0123456789abcdef!!!".getBytes()));
+        v.put("RENTGG_PAYMENT_WEBHOOK_SECRET", "webhook-secret-xXx-0123456789abcdef");
+        assertThatCode(() -> check(v, "prod").check()).doesNotThrowAnyException();
+    }
 }

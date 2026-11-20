@@ -20,9 +20,16 @@ public class StartupSafetyCheck {
 
     static final String DEV_KEY_ID = "devkey";
     static final String DEV_WEBHOOK_SECRET = "dev-only-webhook-secret-rentgg-0123456789";
+    static final String DEV_JWT_SECRET = "ZGV2LW9ubHktand0LXNlY3JldC1yZW50Z2ctMzItYnl0ZXMtbWluIQ==";
 
     /** Substrings that only appear in copy-pasted sample values; matched case-insensitively. */
     static final List<String> PLACEHOLDERS = List.of("changeme", "account_id", "example", "xxx");
+
+    /**
+     * Secret placeholders. "xxx" is left out on purpose: random base64 contains it in about 1 secret in 500,
+     * and the credential key cannot simply be regenerated once data is encrypted with it.
+     */
+    static final List<String> SECRET_PLACEHOLDERS = List.of("changeme", "account_id", "example");
 
     private static final String MOCK_PROVIDER = "FAKE";
 
@@ -56,6 +63,12 @@ public class StartupSafetyCheck {
                     || DEV_WEBHOOK_SECRET.equals(webhook)) {
                 throw new IllegalStateException("Dev secrets must not be used on staging/prod");
             }
+            if (DEV_JWT_SECRET.equals(jwt)) {
+                throw new IllegalStateException("RENTGG_JWT_SECRET must not be the dev default on staging/prod");
+            }
+            requireRealSecret("RENTGG_JWT_SECRET", jwt);
+            requireRealSecret("RENTGG_PAYMENT_WEBHOOK_SECRET", webhook);
+            requireRealSecret("RENTGG_CREDENTIAL_KEYS", props.credentials().keys());
             if (env.acceptsProfiles(Profiles.of("prod")) && props.payment().fakeEnabled()) {
                 throw new IllegalStateException("RENTGG_PAYMENT_FAKE_ENABLED must be false on prod");
             }
@@ -131,6 +144,15 @@ public class StartupSafetyCheck {
         requireRealValue("RENTGG_S3_BUCKET", env.getProperty("rentgg.media.s3.bucket"), "RENTGG_MEDIA_STORAGE=s3");
         requireRealValue("RENTGG_S3_ACCESS_KEY", env.getProperty("rentgg.media.s3.access-key"), "RENTGG_MEDIA_STORAGE=s3");
         requireRealValue("RENTGG_S3_SECRET_KEY", env.getProperty("rentgg.media.s3.secret-key"), "RENTGG_MEDIA_STORAGE=s3");
+    }
+
+    /** Refuses placeholder text or a single repeated character. Names the variable and never echoes its value. */
+    static void requireRealSecret(String name, String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        boolean filler = value.chars().distinct().count() == 1;
+        if (filler || SECRET_PLACEHOLDERS.stream().anyMatch(lower::contains)) {
+            throw new IllegalStateException(name + " still holds a placeholder value on staging/prod");
+        }
     }
 
     /** Names the variable in the message but never echoes its value. */
