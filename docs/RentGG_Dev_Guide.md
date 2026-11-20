@@ -90,7 +90,7 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
   - Bổ sung theo brief: từ chối `RENTGG_JWT_SECRET` bằng giá trị dev mặc định; từ chối `changeme`, `account_id`, `example` và chuỗi một ký tự lặp lại trong JWT, webhook secret và `RENTGG_CREDENTIAL_KEYS`. `xxx` không dùng cho secret vì base64 ngẫu nhiên chứa nó khoảng 1 trên 500, và credential key không đổi được sau khi đã mã hóa dữ liệu.
   - Full suite trên `b0ab6be`: **197 test, 0 fail, 0 lỗi, BUILD SUCCESS**.
   - Boot prod với JWT dev mặc định (PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=db`): bị từ chối, `RENTGG_JWT_SECRET must not be the dev default on staging/prod`.
-  - Unit test: `StartupSafetyCheckTest`, 68 test pass; 56 fail khi chạy với code cũ (kiểm tra không vô nghĩa).
+  - Unit test: `StartupSafetyCheckTest`, 81 test pass (68 ban đầu + 13 bổ sung cho secret). Negative control trên code cũ: 56/68 test ban đầu fail, và 11/13 test bổ sung fail.
   - Khởi động prod thật, PostgreSQL 16 cục bộ, DB `rentgg` (giá trị mock):
     - `RENTGG_PAYMENT_PROVIDER=FAKE`, `RENTGG_MEDIA_STORAGE=db`, PAYOS đủ khóa: bị từ chối, `must not be FAKE on staging/prod (mock provider)`.
     - PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=s3`, endpoint `ACCOUNT_ID` từ file mẫu: bị từ chối, `RENTGG_S3_ENDPOINT still holds a placeholder value`.
