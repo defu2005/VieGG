@@ -156,6 +156,19 @@ rentgg:
 spring:
   config:
     activate:
+      on-profile: staging
+
+# Staging không công bố API docs, giống prod (Dev Guide §2.3, System Design §11.1).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+---
+spring:
+  config:
+    activate:
       on-profile: dev
 
 rentgg:

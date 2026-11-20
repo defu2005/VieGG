@@ -135,6 +135,12 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Làm gì:** thêm khối `on-profile: staging` với `springdoc.api-docs.enabled: false` và `springdoc.swagger-ui.enabled: false`, giống khối prod.
 - **Xong khi:** `GET /swagger-ui.html` và `/v3/api-docs` trả 404 trên prod (và staging nếu có).
 - **Kiểm thử:** `[M]` bằng test MockMvc với profile `prod`.
+- **Kết quả (2026-11-20, nhánh `claude/row-04-swagger-off`): ĐÃ LÀM.**
+  - Thêm khối `staging` trong `application.yml` (api-docs và swagger-ui đều tắt), giống prod.
+  - `ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT`: context thật với giá trị mock qua `StartupSafetyCheck`; `/v3/api-docs`, `/v3/api-docs/swagger-config`, `/swagger-ui.html`, `/swagger-ui/index.html` đều 404. Cần `TEST_DB_URL`.
+  - Control `ApiDocsEnabledInTestProfileIT` (profile `test`): `/v3/api-docs` trả 200.
+  - Negative control: xóa khối `staging` làm `StagingApiDocsDisabledIT` fail.
+  - Full suite: 229 test, 0 fail, 1 lỗi: `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` (deadlock đã biết, §1.2).
 
 ### 2.4 TOTP bắt buộc cho SUPPORT, ADMIN, FINANCE (Phase 1, §4.2)
 - **Làm gì:** thêm MFA TOTP, bắt buộc cho ba role trên. Dùng thư viện TOTP chuẩn RFC 6238.
