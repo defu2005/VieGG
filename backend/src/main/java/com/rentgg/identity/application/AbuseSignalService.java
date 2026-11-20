@@ -51,6 +51,14 @@ public class AbuseSignalService {
                 (rs, i) -> new Signal(rs.getString(1), (UUID) rs.getObject(2), rs.getTimestamp(3).toInstant()), userId);
     }
 
+    /** True when this signal was recorded for the user and order at or after {@code since}. */
+    @Transactional(readOnly = true)
+    public boolean existsSince(UUID userId, String type, UUID orderId, Instant since) {
+        Integer n = jdbc.queryForObject("select count(*) from abuse_signals where user_id = ? and type = ? and order_id = ? "
+                + "and created_at >= ?", Integer.class, userId, type, orderId, Timestamp.from(since));
+        return n != null && n > 0;
+    }
+
     @Transactional(readOnly = true)
     public boolean exists(UUID userId, String type, UUID orderId) {
         Integer n = jdbc.queryForObject("select count(*) from abuse_signals where user_id = ? and type = ? and order_id = ?",

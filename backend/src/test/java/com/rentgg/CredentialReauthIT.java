@@ -91,6 +91,15 @@ class CredentialReauthIT extends IntegrationTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
         assertThat(audit("CREDENTIAL_VIEW_DENIED") - before).isGreaterThanOrEqualTo(6);
+        // One abuse signal per user and order per hour, however many attempts hit the limit.
+        long signalsAfterFirst = jdbc.queryForObject("select count(*) from abuse_signals where user_id = ? and type = ? and order_id = ?",
+                Long.class, r.renter(), "CREDENTIAL_VIEW_REAUTH_RATE_LIMITED", r.orderId());
+        assertThat(signalsAfterFirst).isEqualTo(1);
+        mvc.perform(post("/api/v1/orders/" + r.orderId() + "/credentials").header("Authorization", bearer(r.renter()))
+                        .contentType("application/json").content(passwordBody(PASSWORD)))
+                .andExpect(status().isTooManyRequests());
+        assertThat(jdbc.queryForObject("select count(*) from abuse_signals where user_id = ? and type = ? and order_id = ?",
+                Long.class, r.renter(), "CREDENTIAL_VIEW_REAUTH_RATE_LIMITED", r.orderId())).isEqualTo(1);
     }
 
     @Test

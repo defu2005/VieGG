@@ -13,6 +13,7 @@ import com.rentgg.order.domain.OrderStatus;
 import com.rentgg.order.infrastructure.OrderRepository;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.outbox.OutboxService;
+import com.rentgg.identity.application.AbuseSignalService;
 import com.rentgg.identity.application.AuthService;
 import com.rentgg.shared.ratelimit.RateLimiter;
 import com.rentgg.shared.ratelimit.RateLimiter.Limit;
@@ -40,11 +41,13 @@ public class HandoverService {
     private final RentGgProperties props;
     private final Clock clock;
     private final AuthService auth;
+    private final AbuseSignalService abuse;
 
     public HandoverService(OrderRepository orders, GameAccountService gameAccounts, UserService users,
                            RateLimiter rateLimiter, AuditService audit, OutboxService outbox, MeterRegistry meters,
-                           RentGgProperties props, Clock clock, AuthService auth) {
+                           RentGgProperties props, Clock clock, AuthService auth, AbuseSignalService abuse) {
         this.auth = auth;
+        this.abuse = abuse;
         this.orders = orders;
         this.gameAccounts = gameAccounts;
         this.users = users;
@@ -82,6 +85,16 @@ public class HandoverService {
         return view(callerId, orderId, password);
     }
 
+    /**
+     * Abuse signal for a limit being hit: at most one per user and order per hour, so a loop of attempts leaves one
+     * row. Recorded in the caller's transaction, which does not roll back on ApiException (see the annotation above).
+     */
+    private void signalOncePerHour(UUID userId, String type, UUID orderId, Instant now) {
+        if (!abuse.existsSince(userId, type, orderId, now.minus(Duration.ofHours(1)))) {
+            abuse.record(userId, type, orderId, null);
+        }
+    }
+
     private CredentialsResponse view(UUID callerId, UUID orderId, String password) {
         Order o = orders.findForUpdate(orderId).orElse(null);
         if (o == null || !o.getRenterId().equals(callerId)) {
@@ -110,6 +123,7 @@ public class HandoverService {
             } catch (ApiException e) {
                 audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
                         Map.of("reason", "REAUTH_RATE_LIMITED"), null);
+                signalOncePerHour(callerId, "CREDENTIAL_VIEW_REAUTH_RATE_LIMITED", orderId, now);
                 throw e;
             }
             if (!auth.passwordMatches(callerId, password)) {
@@ -122,6 +136,7 @@ public class HandoverService {
             rateLimiter.consume("credentials:" + orderId, Limit.perHour(props.credentials().rateLimitPerHour()));
         } catch (ApiException e) {
             audit.recordIndependent(callerId, "CREDENTIAL_VIEW_RATE_LIMITED", "Order", orderId, null, null);
+            signalOncePerHour(callerId, "CREDENTIAL_VIEW_RATE_LIMITED", orderId, now);
             throw e;
         }
         DecryptedCredentials creds = gameAccounts.decryptActive(o.getGameAccountId());
