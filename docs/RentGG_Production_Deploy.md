@@ -108,6 +108,19 @@ END $$;
 - `restore.sh` khôi phục với `--role=rentgg_migrator`, để bảng sau khôi phục vẫn thuộc migrator. Bản khôi phục cũ (trước thay đổi này) có bảng thuộc `rentgg`: chạy lại lệnh chuyển quyền sở hữu ở trên trước khi khởi động app.
 - Kiểm chứng (cục bộ, không Docker): `DbRolesIT` 5/5; full suite 226/0/0; full suite với `rentgg_app` và Flyway bằng `rentgg_migrator` 221/0/0 (lúc đó auth là trust); khởi động prod với `rentgg_app` (xác thực scram) thành công; khôi phục với `--role` cho chủ sở hữu đúng.
 
+### B1b. Xác thực hai bước cho nhân viên (Dev Guide §2.4)
+- Biến `RENTGG_STAFF_MFA_REQUIRED` mặc định `true` trên prod và không được tắt (ứng dụng từ chối khởi động nếu tắt).
+- **Admin đầu tiên**: sau `./make-admin.sh email`, đăng nhập bằng mật khẩu, mở trang quản trị và làm theo bước "Bật xác thực hai bước" (tạo khoá, nhập mã vào ứng dụng xác thực, xác nhận). Lần đầu chỉ dựa vào mật khẩu.
+- **Mất thiết bị xác thực**: reset tay trong database (không có màn hình khôi phục). Xoá dòng `user_totp` của người đó và thu hồi refresh token của họ:
+
+```sql
+DELETE FROM user_totp WHERE user_id = '<user-id>';
+UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = '<user-id>' AND revoked_at IS NULL;
+```
+
+  Lưu ý: access token là JWT không lưu phía server, nên sau khi thu hồi refresh token, token đang dùng vẫn có quyền tới khi hết hạn (tối đa 15 phút). Khởi động lại ứng dụng không cắt được phiên này.
+- Sau khi triển khai V31, mọi phiên staff cũ không có claim `mfa` và phải đăng nhập lại kèm mã.
+
 ### B2. Lưu trữ ảnh/video
 - `RENTGG_MEDIA_STORAGE=s3` (mặc định trên profile `prod`): ảnh mới lên R2, DB chỉ giữ khoá. API không đổi nên web/Android/iOS không phải sửa.
 - Dev giữ `db` như cũ.

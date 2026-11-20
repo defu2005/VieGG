@@ -5,7 +5,8 @@ import type { Me, TokenResponse } from '../api/types';
 interface AuthState {
   me: Me | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** totpCode: needed for staff with an authenticator; the server answers MFA_REQUIRED when it is missing. */
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
   /** Revokes every session of this account (all devices), then logs out here. */
   logoutAll: () => Promise<void>;
@@ -60,10 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshMe().finally(() => setLoading(false));
   }, [clearSession, refreshMe]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, totpCode?: string) => {
     const t = await api<TokenResponse>('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { email, password, totpCode: totpCode || undefined },
       anonymous: true,
     });
     saveTokens({ accessToken: t.accessToken, refreshToken: t.refreshToken });

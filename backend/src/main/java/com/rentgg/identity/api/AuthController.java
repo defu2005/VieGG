@@ -44,7 +44,9 @@ public class AuthController {
     public MeController.MeDto register(@Valid @RequestBody RegisterRequest req, HttpServletRequest http) {
         rateLimiter.consume("register:" + http.getRemoteAddr(), Limit.perHour(props.rateLimit().registerPerHour()));
         UserView u = auth.register(req.email(), req.password(), req.displayName(), req.dateOfBirth());
-        return MeController.MeDto.of(u, authorities.fresh(u.id()));
+        var db = authorities.fresh(u.id());
+        return MeController.MeDto.of(u, db.permissions(), db.staff(),
+                new MeController.MeDto.Mfa(false, false, false));
     }
 
     @PostMapping("/login")

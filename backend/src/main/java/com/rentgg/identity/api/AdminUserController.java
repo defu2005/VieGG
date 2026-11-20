@@ -1,7 +1,9 @@
 package com.rentgg.identity.api;
 
 import com.rentgg.identity.application.AbuseSignalService;
+import com.rentgg.config.RentGgProperties;
 import com.rentgg.identity.application.AuthorityService;
+import com.rentgg.identity.application.TotpService;
 import com.rentgg.identity.application.UserService;
 import com.rentgg.identity.application.UserView;
 import com.rentgg.identity.domain.RiskTier;
@@ -29,15 +31,22 @@ public class AdminUserController {
     private final UserService users;
     private final AbuseSignalService signals;
     private final AuthorityService authorities;
+    private final TotpService totp;
+    private final RentGgProperties props;
 
-    public AdminUserController(UserService users, AbuseSignalService signals, AuthorityService authorities) {
+    public AdminUserController(UserService users, AbuseSignalService signals, AuthorityService authorities,
+                               TotpService totp, RentGgProperties props) {
+        this.totp = totp;
+        this.props = props;
         this.users = users;
         this.signals = signals;
         this.authorities = authorities;
     }
 
     private MeController.MeDto dto(UserView u) {
-        return MeController.MeDto.of(u, authorities.resolve(u.id()));
+        var db = authorities.resolve(u.id());
+        var mfa = new MeController.MeDto.Mfa(db.staff() && props.security().staffMfaRequired(), totp.isEnrolled(u.id()), false);
+        return MeController.MeDto.of(u, db.permissions(), db.staff(), mfa);
     }
 
     @GetMapping("/{id}")

@@ -1,5 +1,7 @@
 package com.rentgg;
 
+import com.rentgg.helpdesk.application.HelpdeskService;
+import com.rentgg.helpdesk.domain.TicketCategory;
 import com.rentgg.identity.application.AuthService;
 import com.rentgg.identity.application.TotpService;
 import com.rentgg.shared.security.JwtService;
@@ -36,6 +38,7 @@ class StaffMfaIT extends IntegrationTest {
     @Autowired TotpService totp;
     @Autowired JwtService jwtService;
     @Autowired AuthService authService;
+    @Autowired HelpdeskService helpdesk;
 
     private record Staff(UUID id, String email) {}
 
@@ -87,6 +90,64 @@ class StaffMfaIT extends IntegrationTest {
         var t = auth.login(admin.email(), PASSWORD, null);
         assertThat(jdbc.queryForObject("select mfa_verified from refresh_tokens where id = ?", Boolean.class, t.refreshTokenId()))
                 .isFalse();
+    }
+
+    /** Every staff case of RbacIT, with an unverified token: none may get past the MFA gate. */
+    @Test
+    void unverifiedStaffGetsA403OnEveryStaffCase() throws Exception {
+        String rnd = UUID.randomUUID().toString();
+        List<org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder> requests = List.of(
+                post("/api/v1/admin/listings/" + rnd + "/approve"),
+                post("/api/v1/admin/listings/" + rnd + "/reject").contentType("application/json").content("{\"note\":\"x\"}"),
+                get("/api/v1/admin/ledger/reconciliation"),
+                get("/api/v1/support/disputes"),
+                get("/api/v1/finance/withdrawals"),
+                post("/api/v1/finance/withdrawals/" + rnd + "/mark-paid").contentType("application/json").content("{\"bankRef\":\"B1\"}"),
+                get("/api/v1/admin/approvals"),
+                get("/api/v1/admin/game-accounts"),
+                post("/api/v1/admin/game-accounts/" + rnd + "/verify-recovery"),
+                get("/api/v1/admin/rbac/roles"),
+                get("/api/v1/support/tickets"),
+                get("/api/v1/admin/users/" + rnd));
+        for (String role : List.of("SUPPORT", "ADMIN", "FINANCE")) {
+            Staff s = staff(role);
+            for (var req : requests) {
+                int code = mvc.perform(req.header("Authorization", bearerUnverified(s, role))).andReturn().getResponse().getStatus();
+                assertThat(code).as(role + " " + req.toString()).isEqualTo(403);
+            }
+        }
+    }
+
+    @Test
+    void meOfUnverifiedStaffListsNoPermissionsAndReportsTheStatus() throws Exception {
+        Staff admin = staff("ADMIN");
+        enroll(admin);
+        mvc.perform(get("/api/v1/me").header("Authorization", bearerUnverified(admin, "ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.permissions").isEmpty())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.mfa.required").value(true))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.mfa.enrolled").value(true))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.mfa.verified").value(false));
+    }
+
+    /** The helpdesk reads the caller's staff rights from the token: unverified staff are not staff there. */
+    @Test
+    void unverifiedStaffCannotReadOrHandleATicketTheyAreNotPartOf() throws Exception {
+        UUID customer = user();
+        var ticket = helpdesk.open(customer, "Không nạp được tiền", TicketCategory.SUPPORT, null, "Mình nạp mà chưa thấy");
+        Staff support = staff("SUPPORT");
+        String unverified = bearerUnverified(support, "SUPPORT");
+
+        mvc.perform(get("/api/v1/tickets/" + ticket.id()).header("Authorization", unverified))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/tickets/" + ticket.id() + "/status").header("Authorization", unverified)
+                        .contentType("application/json").content("{\"status\":\"CLOSED\"}"))
+                .andExpect(status().is4xxClientError());
+
+        // Control: the same person with a verified session is a staff member and can read the ticket.
+        mvc.perform(get("/api/v1/tickets/" + ticket.id()).header("Authorization", "Bearer "
+                        + jwtService.issueAccessToken(support.id(), List.of("SUPPORT"), "ACTIVE", true).value()))
+                .andExpect(status().isOk());
     }
 
     // ---- Login checks

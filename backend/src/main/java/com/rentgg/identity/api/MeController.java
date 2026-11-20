@@ -2,6 +2,7 @@ package com.rentgg.identity.api;
 
 import com.rentgg.config.RentGgProperties;
 import com.rentgg.identity.application.AuthService;
+import com.rentgg.identity.application.TotpService;
 import com.rentgg.identity.application.AuthorityService;
 import com.rentgg.identity.application.UserService;
 import com.rentgg.identity.application.UserView;
@@ -38,17 +39,29 @@ public class MeController {
     private final RateLimiter rateLimiter;
     private final RentGgProperties props;
 
+    private final TotpService totp;
+
     public MeController(UserService users, AuthorityService authorities, AuthService auth, RateLimiter rateLimiter,
-                        RentGgProperties props) {
+                        RentGgProperties props, TotpService totp) {
         this.users = users;
         this.authorities = authorities;
         this.auth = auth;
         this.rateLimiter = rateLimiter;
         this.props = props;
+        this.totp = totp;
     }
 
+    /**
+     * For the caller, permissions are the ones the access token grants (empty for unverified staff), so the page
+     * matches what the API will allow. The database value is used only for another user.
+     */
     private MeDto dto(UserView u) {
-        return MeDto.of(u, authorities.resolve(u.id()));
+        AuthorityResolver.Authorities db = authorities.resolve(u.id());
+        boolean self = CurrentUser.optionalId().filter(u.id()::equals).isPresent();
+        Set<String> permissions = self ? CurrentUser.permissions() : db.permissions();
+        MeDto.Mfa mfa = new MeDto.Mfa(db.staff() && props.security().staffMfaRequired(), totp.isEnrolled(u.id()),
+                self && CurrentUser.mfaVerified());
+        return MeDto.of(u, permissions, db.staff(), mfa);
     }
 
     @GetMapping
@@ -106,11 +119,14 @@ public class MeController {
      * {@code staff}: staff account (platform operator); clients show the back office instead of customer features.
      */
     public record MeDto(UUID id, String email, String displayName, LocalDate dateOfBirth, Set<String> roles,
-                        Set<String> permissions, boolean staff, String status, String kycStatus, String riskTier) {
-        static MeDto of(UserView u, AuthorityResolver.Authorities a) {
+                        Set<String> permissions, boolean staff, String status, String kycStatus, String riskTier,
+                        Mfa mfa) {
+        /** {@code required}: the staff second factor applies to this account; {@code verified}: this session passed it. */
+        public record Mfa(boolean required, boolean enrolled, boolean verified) {}
+
+        static MeDto of(UserView u, Set<String> permissions, boolean staff, Mfa mfa) {
             return new MeDto(u.id(), u.email(), u.displayName(), u.dateOfBirth(), new TreeSet<>(u.roles()),
-                    new TreeSet<>(a.permissions()), a.staff(), u.status().name(), u.kycStatus().name(),
-                    u.riskTier().name());
+                    new TreeSet<>(permissions), staff, u.status().name(), u.kycStatus().name(), u.riskTier().name(), mfa);
         }
     }
 }

@@ -158,7 +158,11 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
   - Negative control: vô hiệu hóa cổng trong converter làm test 403 fail.
   - Full suite: 244 test, 0 fail, 0 lỗi (run này deadlock đã biết pass).
   - Boot prod với `rentgg_app`, Flyway bằng `rentgg_migrator` trên DB thật: migrator áp dụng V31, khởi động thành công.
-  - Chưa làm: web (`LoginPage.tsx`, `AuthContext.tsx`, `RouteGuards.tsx`, `client.ts`). Vì cờ mặc định bật, staff trên prod không đăng nhập được vào trang quản trị cho đến khi form đăng nhập gửi mã. Ứng dụng iOS và Android chưa có ô nhập mã.
+  - Web (đã làm): `LoginPage` hiện ô mã khi server trả `MFA_REQUIRED` và giữ email, mật khẩu; `StaffMfaPanel` thay trang quản trị khi phiên staff chưa xác thực (chưa bật thì tạo khoá bí mật dạng văn bản; đã bật thì yêu cầu đăng nhập lại kèm mã). `/me` trả `mfa: {required, enrolled, verified}` và quyền theo token.
+  - `npm ci`, `npm run typecheck`, `npm run build`: pass.
+  - Kiểm tra trên trình duyệt: **KHÔNG CHẠY**. Backend `dev` không khởi động trên DB mới: seed (`DevDataSeeder.paid`) ném `Số dư ví không đủ` khi trả đơn bằng ví. Đã xác nhận lỗi giống hệt trên `origin/dev` (không liên quan đến thay đổi của hàng 5). Cần một task riêng để sửa seeder.
+  - iOS và Android chưa có ô nhập mã: ứng dụng di động vẫn đăng nhập bằng mật khẩu, staff trên ứng dụng đó sẽ nhận `MFA_REQUIRED` và không đăng nhập được.
+  - Lỗi trong `ApiIT`/`StaffMfaIT` không xuất hiện trong full suite (247 test, 0 fail; 1 lỗi deadlock đã biết).
   - Giới hạn: lần đầu đăng ký chỉ dựa vào mật khẩu; mất thiết bị cần reset tay trong database. Phiên cũ (trước V31) không có `mfa`: staff phải đăng nhập lại kèm mã.
 
 ---
