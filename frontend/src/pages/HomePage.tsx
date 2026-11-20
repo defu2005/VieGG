@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ListingCard, ListingSkeletons } from '../components/ListingCard';
 import { errorMessage } from '../lib/format';
 import { STAFF_LINKS } from '../lib/staff';
+import { StaffMfaPanel } from '../components/StaffMfaPanel';
 import { useSiteSettings } from '../lib/siteSettings';
 
 const TRUST = [
@@ -23,10 +24,12 @@ const STEPS = [
 
 /** Customers get the marketplace home; staff accounts go straight to their first back-office page. */
 export function HomePage() {
-  const { isStaff, can } = useAuth();
+  const { isStaff, can, me } = useAuth();
   if (!isStaff) return <CustomerHome />;
   const first = STAFF_LINKS.find((l) => can(...l.anyOf));
   if (first) return <Navigate to={first.to} replace />;
+  // Unverified staff have no permissions yet: the panel is where they enrol or sign in again with a code.
+  if (me?.mfa?.required && !me.mfa.verified) return <StaffMfaPanel />;
   return <p className="muted">Tài khoản nhân viên này chưa được cấp quyền quản trị nào. Liên hệ quản trị viên để được phân quyền.</p>;
 }
 

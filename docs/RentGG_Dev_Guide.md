@@ -147,51 +147,22 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Xong khi:** staff không có TOTP bị chặn truy cập trang quản trị; test với mã đúng, sai và đã dùng.
 - **Kiểm thử:** `[M]`.
 - **Ghi chú:** tài liệu xếp mục này ở Phase 1. Có thể bỏ qua nếu bạn chưa có tiền thật đi qua.
-- **Kết quả (2026-11-20, nhánh `claude/row-05-staff-totp`): BACKEND ĐÃ LÀM; WEB CHƯA.**
+- **Kết quả (2026-11-20, nhánh `claude/row-05-staff-totp`, PR #6): ĐÃ LÀM** (backend, web, kiểm tra trên trình duyệt).
   - Thứ tự hàng đợi cloud không có §2.4, nhưng brief đưa vào hàng đợi, nên làm theo brief.
-  - Cơ chế: cờ `rentgg.security.staff-mfa-required` (`RENTGG_STAFF_MFA_REQUIRED`, mặc định true; false ở `dev`; `StartupSafetyCheck` từ chối false trên staging/prod). Staff (vai trò có `roles.is_staff`) chưa xác thực không có quyền staff nào (vẫn có `ROLE_*`), nên mọi endpoint `@PreAuthorize` trả 403. Quyết định dựa vào `hasAuthority`; không endpoint nào dùng `hasRole`.
-  - Claim `mfa` trong access token; `refresh_tokens.mfa_verified` được giữ qua refresh; đổi mật khẩu và dev time travel giữ trạng thái của phiên hiện tại.
-  - TOTP: thư viện `dev.samstevens.totp:totp:1.7.1` (6 số, 30 giây, SHA-1), cửa sổ ±1 bước, mỗi bước chỉ dùng một lần (cập nhật có điều kiện), khóa 15 phút sau 5 lần sai. Bí mật mã hóa bằng `CredentialCipher` (khóa theo user id), không ghi log.
-  - Đăng nhập: staff đã đăng ký TOTP phải gửi `totpCode` (`MFA_REQUIRED`, `MFA_INVALID`, `MFA_LOCKED`). `AuthService.login` dùng `noRollbackFor` để ghi nhận lần sai. Staff chưa đăng ký đăng nhập không xác thực và chỉ có thể đăng ký (`/api/v1/me/mfa/totp/start`, `/confirm`), không có quyền khác.
-  - Migration `V31__staff_mfa.sql`: thêm cột `mfa_verified` và bảng `user_totp`.
-  - Test: `StaffMfaIT` 12 test (quyền 403/200, mã đúng/sai/đã dùng, ±1 chấp nhận, ±2 từ chối, hai đăng nhập đồng thời chỉ một thắng, khóa sau 5 lần sai và hết hạn theo clock, refresh giữ trạng thái, secret đã mã hóa, endpoint enrol); `TotpVectorsTest` (RFC 6238 Appendix B, 6 số, có số 0 đầu); `StartupSafetyCheckTest` (cờ tắt bị từ chối trên prod và staging).
-  - Negative control: vô hiệu hóa cổng trong converter làm test 403 fail.
-  - Full suite: 244 test, 0 fail, 0 lỗi (run này deadlock đã biết pass).
-  - Boot prod với `rentgg_app`, Flyway bằng `rentgg_migrator` trên DB thật: migrator áp dụng V31, khởi động thành công.
-  - Web (đã làm): `LoginPage` hiện ô mã khi server trả `MFA_REQUIRED` và giữ email, mật khẩu; `StaffMfaPanel` thay trang quản trị khi phiên staff chưa xác thực (chưa bật thì tạo khoá bí mật dạng văn bản; đã bật thì yêu cầu đăng nhập lại kèm mã). `/me` trả `mfa: {required, enrolled, verified}` và quyền theo token.
-  - `npm ci`, `npm run typecheck`, `npm run build`: pass.
-  - Kiểm tra trên trình duyệt: **KHÔNG CHẠY**. Backend `dev` không khởi động trên DB mới: seed (`DevDataSeeder.paid`) ném `Số dư ví không đủ` khi trả đơn bằng ví. Đã xác nhận lỗi giống hệt trên `origin/dev` (không liên quan đến thay đổi của hàng 5). Cần một task riêng để sửa seeder.
-  - iOS và Android chưa có ô nhập mã: ứng dụng di động vẫn đăng nhập bằng mật khẩu, staff trên ứng dụng đó sẽ nhận `MFA_REQUIRED` và không đăng nhập được.
-  - Lỗi trong `ApiIT`/`StaffMfaIT` không xuất hiện trong full suite (247 test, 0 fail; 1 lỗi deadlock đã biết).
-  - Giới hạn: lần đầu đăng ký chỉ dựa vào mật khẩu; mất thiết bị cần reset tay trong database. Phiên cũ (trước V31) không có `mfa`: staff phải đăng nhập lại kèm mã.
-
----
-
-## 3. Các mục còn lại của §4.1
-
-Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1, không phân tích lại từ đầu. Mỗi mục làm theo mẫu sau:
-
-| # | Mục | Khu vực | Xong khi | Kiểm thử |
-|---|---|---|---|---|
-| 5 | Re-auth khi xem credentials (D5) | `gameaccount/` (credentials) | Cờ `rentgg.credentials.require-reauth` có tác dụng | `[M]` |
-| 6 | Rate limit đăng nhập lũy tiến (§12.5) | `identity/` | Thời gian chờ tăng sau nhiều lần sai | `[M]` |
-| 7 | Tín hiệu lạm dụng khi vượt giới hạn xem credentials | `identity/`, `audit/` | Ghi `abuse_signals` khi vượt giới hạn | `[M]` |
-| 8 | Metrics còn thiếu (§16.2) | `shared/` (metrics) | Ba metric xuất hiện trên `/actuator/prometheus` | `[M]` |
-| 9 | MDC `userId` và `orderId` | `shared/` | Log có hai trường này | `[M]` |
-| 10 | Cảnh báo outbox kẹt và refund lỗi | `jobs/` | Có rule alert (file cấu hình) | `[M]` |
-| 11 | Endpoint quản trị còn thiếu | `identity/`, `approval/` | Danh sách chờ `verify-recovery`, danh sách user, tra audit | `[M]` |
-| 12 | Kháng nghị quyết định | `dispute/` | Chủ account có thể kháng nghị một lần | `[M]` |
-| 13 | Hồ sơ thông báo pháp lý (UC-20) | mới | Bảng và endpoint tiếp nhận, có hạn phản hồi | `[M]` |
-| 14 | Cảnh báo quá hạn phân xử (`deadline_at`) | `dispute/` | Job đánh dấu quá hạn | `[M]` |
-| 15 | Giới hạn body JSON 1 MB (§12.10) | `shared/` (web) | Body lớn hơn bị 413 | `[M]` |
-| 16 | Template thông báo theo sự kiện | `notification/` | Mỗi sự kiện có tiêu đề và nội dung riêng | `[M]` |
-| 17 | CI backend và frontend | `.github/` | Xem mục 1.2 | CI |
-
----
-
-## 4. Tích hợp bên ngoài (làm bằng mock trước)
-
-Mỗi tích hợp có hai checkbox: **`[M]` đạt với mock** và **`[S]` đạt với sandbox thật**. Mục `[S]` để trống cho đến khi bạn có khóa (Phụ lục A).
+  - Cơ chế: cờ `rentgg.security.staff-mfa-required` (`RENTGG_STAFF_MFA_REQUIRED`, mặc định true; false ở `dev`; `StartupSafetyCheck` từ chối false trên staging/prod). Staff (vai trò có `roles.is_staff`) chưa xác thực có `ROLE_*` nhưng không có quyền nào, nên endpoint `@PreAuthorize` trả 403. Helpdesk đọc quyền staff của chính người gọi từ token (trước đây đọc từ DB: lỗ hổng đã sửa, có test và negative control).
+  - Claim `mfa` trong access token; `refresh_tokens.mfa_verified` giữ qua refresh; đổi mật khẩu và dev time travel giữ trạng thái phiên hiện tại.
+  - TOTP: `dev.samstevens.totp:totp:1.7.1` (6 số, 30 giây, SHA-1), cửa sổ ±1 bước, mỗi bước một lần (cập nhật có điều kiện), khoá 15 phút sau 5 lần sai. Bí mật mã hoá bằng `CredentialCipher` (khoá theo user id).
+  - Đăng nhập: staff đã bật TOTP phải gửi `totpCode` (`MFA_REQUIRED`, `MFA_INVALID`, `MFA_LOCKED`). `AuthService.login` có `noRollbackFor` để ghi nhận lần sai. Staff chưa bật đăng nhập không xác thực và chỉ có thể bật TOTP.
+  - `/api/v1/me`: quyền theo token (rỗng với phiên chưa xác thực) và `mfa: {required, enrolled, verified}`.
+  - Web: `LoginPage` hiện ô mã khi `MFA_REQUIRED`; `StaffMfaPanel` thay trang quản trị và trang chủ staff khi phiên chưa xác thực (bật TOTP, hoặc đăng nhập lại kèm mã).
+  - Migration `V31__staff_mfa.sql`: `refresh_tokens.mfa_verified`, bảng `user_totp`. Áp dụng được dưới `rentgg_migrator`.
+  - Mobile: Android (`ignoreUnknownKeys = true`) và iOS (`JSONDecoder` mặc định) bỏ qua khoá lạ, nên `mfa` không làm hỏng ứng dụng. Nhưng ứng dụng di động chưa có ô nhập mã: staff đăng nhập bằng ứng dụng đó sẽ nhận `MFA_REQUIRED` và không vào được.
+  - Test: `StaffMfaIT` 15 test (quyền 403/200; mã đúng, sai, đã dùng; ±1 chấp nhận, ±2 từ chối; đăng nhập đồng thời chỉ một thắng; khoá sau 5 lần sai; refresh giữ trạng thái; secret mã hoá; endpoint bật TOTP; mọi case staff của RbacIT với token chưa xác thực; `/me`; helpdesk), `TotpVectorsTest` (RFC 6238 Appendix B), `StartupSafetyCheckTest` (cờ tắt bị từ chối). Negative control: bỏ cổng trong converter và bỏ kiểm tra helpdesk đều làm test tương ứng fail.
+  - Full suite: 247 test, 0 fail, 0 lỗi. Backend CI trên `27d356d` (run `44812241774`): xanh, 247 test. Web CI: xanh.
+  - Frontend: `npm ci`, typecheck, build đều pass.
+  - Kiểm tra trên trình duyệt (Playwright, backend `dev` với cờ bật, DB dev đã seed): **ĐẠT**. Admin chưa bật TOTP: thấy panel, tạo khoá, xác nhận mã; đăng xuất; chờ bước mới; đăng nhập bằng mật khẩu nhận ô mã; mã sai báo lỗi; mã đúng vào `/admin/listings` có dữ liệu. Script: `/tmp/claude-pg16/e2e/staff-mfa.js` (không nằm trong repo). Lưu ý: onboarding overlay chặn thao tác cho cả tài khoản staff, phải đóng trước khi làm việc trên panel.
+  - Lỗi có sẵn, không do hàng 5: boot `dev` trên DB mới thất bại vì `DevDataSeeder.paid` ném `Số dư ví không đủ` (trên `origin/dev` cũng vậy). Đã queue một task để sửa.
+  - Vận hành: lần đầu bật TOTP chỉ dựa vào mật khẩu; mất thiết bị cần reset tay (`docs/RentGG_Production_Deploy.md` B1b); phiên cũ không có `mfa` phải đăng nhập lại.
 
 ### 4.1 Cổng thanh toán (PSP)
 Có năm lớp: `VnpayGateway`, `MomoGateway`, `ZalopayGateway`, `PayosGateway`, và `PspHttp` (lớp HTTP dùng chung). Thư mục: `backend/src/main/java/com/rentgg/payment/infrastructure/psp/`.
