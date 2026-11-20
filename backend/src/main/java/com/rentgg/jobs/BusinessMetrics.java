@@ -60,6 +60,11 @@ public class BusinessMetrics {
         // Registered up front so the series exist at zero before the first rotation or overdue event.
         meters.counter("rentgg_rotation_overdue_total");
         Timer.builder("rentgg_rotation_duration_seconds").register(meters);
+        for (String kind : new String[]{"RENT", "DEPOSIT"}) {
+            for (String result : new String[]{"succeeded", "failed"}) {
+                meters.counter("rentgg_refunds_total", "kind", kind, "result", result);
+            }
+        }
         for (DepositStatus status : DepositStatus.values()) {
             Gauge.builder("rentgg_deposits_by_status", jdbc, j -> safe(() -> count(
                     "select count(*) from deposits where status = ?", status.name())))
