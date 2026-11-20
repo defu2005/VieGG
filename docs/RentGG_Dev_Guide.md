@@ -37,6 +37,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Làm gì:** `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test`
 - **Khu vực:** `backend/src/test/`
 - **Xong khi:** ghi lại số test chạy, số lỗi, số bỏ qua; mọi test đỏ có ghi chú nguyên nhân.
+- **Kết quả thực tế (2026-11-20):** CHƯA CHẠY CỤC BỘ. Database `rentgg_test` chưa có, role `rentgg` không có quyền CREATEDB, và không có thông tin tài khoản superuser để tạo. Không ghi số liệu. Baseline = CI (mục 1.2). Agent cloud phải làm bước 0 là chạy test trên Postgres service và ghi số liệu thật vào đây.
 - **Kiểm thử:** chính lệnh trên `[M]` (DB thật cục bộ nhưng không gọi dịch vụ ngoài).
 
 ### 1.2 CI xanh lần đầu
@@ -44,6 +45,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
 - **Kiểm thử:** xem log CI.
+- **Kết quả thực tế (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
 Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là một checklist:
