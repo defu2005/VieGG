@@ -53,6 +53,31 @@ class LogbackConfigTest {
     }
 
     @Test
+    void textOutputCarriesTraceUserAndOrderIdInTestProfile(CapturedOutput output) {
+        init("test");
+        MDC.put("traceId", "t-9");
+        MDC.put("userId", "3f2c0000-0000-0000-0000-000000000001");
+        MDC.put("orderId", "6a7b0000-0000-0000-0000-000000000002");
+        LoggerFactory.getLogger("config-test").info("order step done");
+
+        String line = output.getOut().lines().filter(l -> l.contains("order step done")).findFirst().orElseThrow();
+        assertThat(line).contains("[t-9] [3f2c0000-0000-0000-0000-000000000001] [6a7b0000-0000-0000-0000-000000000002]");
+    }
+
+    @Test
+    void jsonOutputCarriesUserAndOrderIdUnmaskedInProdProfile(CapturedOutput output) throws Exception {
+        init("prod");
+        MDC.put("userId", "3f2c0000-0000-0000-0000-000000000001");
+        MDC.put("orderId", "6a7b0000-0000-0000-0000-000000000002");
+        LoggerFactory.getLogger("config-test").info("order json step");
+
+        String line = output.getOut().lines().filter(l -> l.contains("order json step")).findFirst().orElseThrow();
+        JsonNode json = new ObjectMapper().readTree(line);
+        assertThat(json.path("userId").asText()).isEqualTo("3f2c0000-0000-0000-0000-000000000001");
+        assertThat(json.path("orderId").asText()).isEqualTo("6a7b0000-0000-0000-0000-000000000002");
+    }
+
+    @Test
     void quotedValueWithSpacesDoesNotLeakInText(CapturedOutput output) {
         init("test");
         LoggerFactory.getLogger("config-test").info("{\"password\":\"correct horse battery\"}");
