@@ -38,3 +38,6 @@ Cấu hình nằm trong `.claude/launch.json`. Các cặp `*-alt`, `*-ui`, `*-80
 `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test` (test sẽ clean + migrate `rentgg_test`, không bao giờ trỏ vào `rentgg`).
 
 Tài liệu cho người: "Hướng dẫn chạy RentGG" — https://claude.ai/artifact/LausFpCg2umgshRuBdRh9U
+
+## Production
+Triển khai: `docs/RentGG_Production_Deploy.md` (stack `deploy/`, ảnh/video trên R2 khi `RENTGG_MEDIA_STORAGE=s3`; dev giữ `db`).
