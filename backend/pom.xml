@@ -106,6 +106,13 @@
             <artifactId>mockwebserver</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- In-JVM S3 server for the storage tests (Dev Guide §4.2). -->
+        <dependency>
+            <groupId>org.gaul</groupId>
+            <artifactId>s3proxy</artifactId>
+            <version>2.3.0</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Test -->
         <dependency>
