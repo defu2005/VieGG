@@ -31,6 +31,7 @@ import com.rentgg.order.domain.Money;
 import com.rentgg.order.domain.OrderStatus;
 import com.rentgg.payment.application.PaymentService;
 import com.rentgg.shared.error.ApiException;
+import com.rentgg.shared.media.MediaStore;
 import com.rentgg.shared.outbox.OutboxService;
 import com.rentgg.shared.security.CurrentUser;
 import com.rentgg.shared.security.Permission;
@@ -64,6 +65,7 @@ public class DisputeService implements OrderLifecycleListener {
 
     private final DisputeRepository disputes;
     private final DisputeAttachmentRepository attachments;
+    private final MediaStore media;
     private final DisputeItemRepository items;
     private final OrderService orders;
     private final DepositService deposits;
@@ -82,7 +84,8 @@ public class DisputeService implements OrderLifecycleListener {
                           OrderService orders, DepositService deposits,
                           GameAccountService gameAccounts, UserService users, AbuseSignalService signals,
                           LedgerService ledger, PaymentService payments, AuditService audit, OutboxService outbox,
-                          MeterRegistry meters, RentGgProperties props, Clock clock) {
+                          MeterRegistry meters, RentGgProperties props, MediaStore media, Clock clock) {
+        this.media = media;
         this.disputes = disputes;
         this.attachments = attachments;
         this.items = items;
@@ -339,7 +342,8 @@ public class DisputeService implements OrderLifecycleListener {
             throw ApiException.unprocessable("TOO_MANY_ATTACHMENTS",
                     "Mỗi khiếu nại tối đa " + MAX_ATTACHMENTS + " ảnh/video.");
         }
-        DisputeAttachment a = attachments.save(new DisputeAttachment(disputeId, callerId, type, data, clock.instant()));
+        DisputeAttachment a = attachments.save(new DisputeAttachment(disputeId, callerId, type,
+                media.save("dispute-attachments/" + disputeId, type, data), clock.instant()));
         d.addAttachmentEvidence(a, note);
         attachments.flush();
         outbox.record("Dispute", d.getId(), "DisputeEvidenceAdded", Map.of("disputeId", d.getId(), "orderId", o.id(), "addedBy", callerId,
@@ -353,7 +357,7 @@ public class DisputeService implements OrderLifecycleListener {
         getForCaller(callerId, disputeId);
         return attachments.findById(attachmentId)
                 .filter(a -> a.getDisputeId().equals(disputeId))
-                .map(a -> new AttachmentData(a.getContentType(), a.getData()))
+                .map(a -> new AttachmentData(a.getContentType(), media.load(a.getStorageKey(), a.getData())))
                 .orElseThrow(() -> ApiException.notFound("Tệp"));
     }
 

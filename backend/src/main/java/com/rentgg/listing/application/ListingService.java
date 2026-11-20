@@ -19,6 +19,7 @@ import com.rentgg.catalog.domain.RiskSide;
 import com.rentgg.listing.infrastructure.ListingImageRepository;
 import com.rentgg.listing.infrastructure.ListingRepository;
 import com.rentgg.shared.error.ApiException;
+import com.rentgg.shared.media.MediaStore;
 import com.rentgg.shared.error.DbErrors;
 import com.rentgg.shared.outbox.OutboxService;
 import com.rentgg.shared.web.PageResponse;
@@ -50,6 +51,7 @@ public class ListingService {
 
     private final ListingRepository listings;
     private final ListingImageRepository images;
+    private final MediaStore media;
     private final GameAccountService gameAccounts;
     private final CatalogService catalog;
     private final UserService users;
@@ -60,7 +62,8 @@ public class ListingService {
 
     public ListingService(ListingRepository listings, ListingImageRepository images, GameAccountService gameAccounts,
                           CatalogService catalog, UserService users, AuditService audit, OutboxService outbox,
-                          NamedParameterJdbcTemplate jdbc, Clock clock) {
+                          NamedParameterJdbcTemplate jdbc, MediaStore media, Clock clock) {
+        this.media = media;
         this.listings = listings;
         this.images = images;
         this.gameAccounts = gameAccounts;
@@ -452,7 +455,8 @@ public class ListingService {
             throw ApiException.unprocessable("TOO_MANY_IMAGES", "Mỗi listing tối đa " + MAX_IMAGES + " ảnh.");
         }
         Instant now = clock.instant();
-        images.save(new ListingImage(listingId, images.maxPosition(listingId) + 1, type, data, now));
+        images.save(new ListingImage(listingId, images.maxPosition(listingId) + 1, type,
+                media.save("listing-images/" + listingId, type, data), now));
         if (l.getStatus() == REJECTED) {
             move(l, DRAFT, null);
         } else if (l.getStatus() == ACTIVE) {
@@ -474,6 +478,7 @@ public class ListingService {
                 .filter(i -> i.getListingId().equals(listingId))
                 .orElseThrow(() -> ApiException.notFound("Ảnh"));
         images.delete(img);
+        media.deleteAfterCommit(img.getStorageKey());
         l.touch(clock.instant());
         images.flush();
         return view(l);
@@ -484,7 +489,7 @@ public class ListingService {
     public ImageData image(UUID listingId, UUID imageId) {
         return images.findById(imageId)
                 .filter(i -> i.getListingId().equals(listingId))
-                .map(i -> new ImageData(i.getContentType(), i.getData()))
+                .map(i -> new ImageData(i.getContentType(), media.load(i.getStorageKey(), i.getData())))
                 .orElseThrow(() -> ApiException.notFound("Ảnh"));
     }
 

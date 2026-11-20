@@ -24,6 +24,7 @@
         <bucket4j.version>8.10.1</bucket4j.version>
         <logstash.version>7.4</logstash.version>
         <archunit.version>1.3.0</archunit.version>
+        <awssdk.version>2.31.1</awssdk.version>
     </properties>
 
     <dependencies>
@@ -120,6 +121,27 @@
             <artifactId>archunit-junit5</artifactId>
             <version>${archunit.version}</version>
             <scope>test</scope>
+        </dependency>
+        <!-- Media on S3-compatible storage (Cloudflare R2) when rentgg.media.storage=s3. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${awssdk.version}</version>
         </dependency>
     </dependencies>
 

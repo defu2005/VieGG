@@ -49,6 +49,19 @@ public class StartupSafetyCheck {
             if (env.acceptsProfiles(Profiles.of("prod")) && props.payment().fakeEnabled()) {
                 throw new IllegalStateException("RENTGG_PAYMENT_FAKE_ENABLED must be false on prod");
             }
+            // Payment providers call back and redirect to these, so they must be the public HTTPS addresses.
+            requireHttps("RENTGG_PUBLIC_BASE_URL", props.payment().publicBaseUrl());
+            requireHttps("RENTGG_FRONTEND_BASE_URL", props.payment().frontendBaseUrl());
+            String cors = props.security().corsAllowedOrigins();
+            if (cors == null || cors.isBlank()) {
+                throw new IllegalStateException("RENTGG_CORS_ALLOWED_ORIGINS is required on staging/prod");
+            }
+        }
+    }
+
+    private static void requireHttps(String name, String url) {
+        if (url == null || !url.startsWith("https://")) {
+            throw new IllegalStateException(name + " must be an https:// address on staging/prod");
         }
     }
 }

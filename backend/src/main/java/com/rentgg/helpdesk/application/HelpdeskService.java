@@ -25,6 +25,7 @@ import com.rentgg.identity.application.UserService;
 import com.rentgg.order.application.OrderService;
 import com.rentgg.order.application.OrderView;
 import com.rentgg.shared.error.ApiException;
+import com.rentgg.shared.media.MediaStore;
 import com.rentgg.shared.outbox.OutboxService;
 import com.rentgg.shared.security.AuthorityResolver;
 import com.rentgg.shared.security.Permission;
@@ -65,6 +66,7 @@ public class HelpdeskService {
     private final TicketParticipantRepository participants;
     private final TicketMessageRepository messages;
     private final TicketAttachmentRepository attachments;
+    private final MediaStore media;
     private final OrderService orders;
     private final DisputeService disputes;
     private final UserService users;
@@ -78,11 +80,13 @@ public class HelpdeskService {
                            TicketMessageRepository messages, TicketAttachmentRepository attachments,
                            OrderService orders, DisputeService disputes, UserService users,
                            AuthorityResolver authorities, AuditService audit, OutboxService outbox, JdbcTemplate jdbc,
+                           MediaStore media,
                            Clock clock) {
         this.tickets = tickets;
         this.participants = participants;
         this.messages = messages;
         this.attachments = attachments;
+        this.media = media;
         this.orders = orders;
         this.disputes = disputes;
         this.users = users;
@@ -214,7 +218,8 @@ public class HelpdeskService {
                 throw ApiException.unprocessable("TOO_MANY_ATTACHMENTS",
                         "Mỗi yêu cầu tối đa " + MAX_ATTACHMENTS_PER_TICKET + " ảnh.");
             }
-            attachmentId = attachments.save(new TicketAttachment(t.getId(), callerId, attachmentType, image, now))
+            attachmentId = attachments.save(new TicketAttachment(t.getId(), callerId, attachmentType,
+                            media.save("support-attachments/" + t.getId(), attachmentType, image), now))
                     .getId();
         }
         // Who should be notified: only people who had read everything so far (no flood of one ping per message).
@@ -287,7 +292,7 @@ public class HelpdeskService {
         if (a.getCreatedAt().isBefore(from)) {
             throw ApiException.notFound("Tệp");
         }
-        return new AttachmentData(a.getContentType(), a.getData());
+        return new AttachmentData(a.getContentType(), media.load(a.getStorageKey(), a.getData()));
     }
 
     // ================================================================= read

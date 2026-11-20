@@ -122,6 +122,34 @@ rentgg:
       api-key: ${PAYOS_API_KEY:}
       checksum-key: ${PAYOS_CHECKSUM_KEY:}
       endpoint: ${PAYOS_ENDPOINT:https://api-merchant.payos.vn}
+  # Uploaded images/videos. "db" keeps the bytes in Postgres (dev); "s3" puts them in an S3-compatible bucket
+  # (Cloudflare R2 on prod) and moves older rows there in the background (backfill).
+  media:
+    storage: ${RENTGG_MEDIA_STORAGE:db}
+    backfill: ${RENTGG_MEDIA_BACKFILL:true}
+    s3:
+      endpoint: ${RENTGG_S3_ENDPOINT:}
+      region: ${RENTGG_S3_REGION:auto}
+      bucket: ${RENTGG_S3_BUCKET:}
+      access-key: ${RENTGG_S3_ACCESS_KEY:}
+      secret-key: ${RENTGG_S3_SECRET_KEY:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# Public API docs are off on prod (System Design §17.2).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+rentgg:
+  media:
+    storage: ${RENTGG_MEDIA_STORAGE:s3}
 
 ---
 spring:
