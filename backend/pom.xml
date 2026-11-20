@@ -100,6 +100,12 @@
             <artifactId>totp</artifactId>
             <version>1.7.1</version>
         </dependency>
+        <!-- Mock HTTP servers for the PSP contract tests (version managed by Spring Boot's okhttp-bom). -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Test -->
         <dependency>

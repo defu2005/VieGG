@@ -23,6 +23,18 @@ rentgg:
       app-id: "2553"
       key1: test-zalopay-key1
       key2: test-zalopay-key2
+      # Closed loopback port: a provider call in the default context fails fast and never reaches a real sandbox.
+      endpoint: http://127.0.0.1:1
+    payos:
+      client-id: test-payos-client-id
+      api-key: test-payos-api-key
+      checksum-key: test-payos-checksum-key
+      endpoint: http://127.0.0.1:1
+    momo:
+      partner-code: TESTMOMOPARTNER
+      access-key: test-momo-access-key
+      secret-key: test-momo-secret-key
+      endpoint: http://127.0.0.1:1
 
 spring:
   flyway:
