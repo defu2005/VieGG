@@ -76,6 +76,15 @@ public class AuthService {
      * or {@code MFA_LOCKED} when wrong). A failed code is recorded, so this must not roll back on ApiException.
      * Staff without an authenticator log in unverified: they can enrol, but get no staff permissions yet.
      */
+    /** True when the password is the account's RentGG password (used to re-confirm identity, D5). */
+    @Transactional(readOnly = true)
+    public boolean passwordMatches(UUID userId, String password) {
+        if (password == null || password.isEmpty()) {
+            return false;
+        }
+        return users.findById(userId).map(u -> passwordEncoder.matches(password, u.getPasswordHash())).orElse(false);
+    }
+
     @Transactional(noRollbackFor = ApiException.class)
     public Tokens login(String email, String password, String totpCode) {
         User u = users.findByEmail(email.trim().toLowerCase()).orElse(null);

@@ -71,7 +71,7 @@ rentgg:
     sla-minutes: 60
   credentials:
     rate-limit-per-hour: 10
-    require-reauth: false
+    require-reauth: ${RENTGG_CREDENTIALS_REQUIRE_REAUTH:false}
     keys: ${RENTGG_CREDENTIAL_KEYS:}
     active-key-id: ${RENTGG_CREDENTIAL_ACTIVE_KEY_ID:}
   security:

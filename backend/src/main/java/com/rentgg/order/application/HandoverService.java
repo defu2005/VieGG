@@ -13,6 +13,7 @@ import com.rentgg.order.domain.OrderStatus;
 import com.rentgg.order.infrastructure.OrderRepository;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.outbox.OutboxService;
+import com.rentgg.identity.application.AuthService;
 import com.rentgg.shared.ratelimit.RateLimiter;
 import com.rentgg.shared.ratelimit.RateLimiter.Limit;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -38,10 +39,12 @@ public class HandoverService {
     private final MeterRegistry meters;
     private final RentGgProperties props;
     private final Clock clock;
+    private final AuthService auth;
 
     public HandoverService(OrderRepository orders, GameAccountService gameAccounts, UserService users,
                            RateLimiter rateLimiter, AuditService audit, OutboxService outbox, MeterRegistry meters,
-                           RentGgProperties props, Clock clock) {
+                           RentGgProperties props, Clock clock, AuthService auth) {
+        this.auth = auth;
         this.orders = orders;
         this.gameAccounts = gameAccounts;
         this.users = users;
@@ -67,6 +70,19 @@ public class HandoverService {
      */
     @Transactional(noRollbackFor = ApiException.class)
     public CredentialsResponse viewCredentials(UUID callerId, UUID orderId) {
+        return view(callerId, orderId, null);
+    }
+
+    /**
+     * D5 (System Design §18, {@code rentgg.credentials.require-reauth}): when the flag is on, the renter must
+     * re-enter the RentGG password. Each attempt, right or wrong, uses one of five per hour for this user.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public CredentialsResponse viewCredentialsWithPassword(UUID callerId, UUID orderId, String password) {
+        return view(callerId, orderId, password);
+    }
+
+    private CredentialsResponse view(UUID callerId, UUID orderId, String password) {
         Order o = orders.findForUpdate(orderId).orElse(null);
         if (o == null || !o.getRenterId().equals(callerId)) {
             audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId, Map.of("reason", "NOT_RENTER"), null);
@@ -82,6 +98,25 @@ public class HandoverService {
             audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
                     Map.of("reason", "WINDOW_CLOSED", "status", o.getStatus().name()), null);
             throw ApiException.unprocessable("CREDENTIAL_WINDOW_CLOSED", "Chỉ xem được thông tin đăng nhập trong thời gian thuê.");
+        }
+        if (props.credentials().requireReauth()) {
+            if (password == null) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "REAUTH_REQUIRED"), null);
+                throw ApiException.forbidden("REAUTH_REQUIRED", "Nhập lại mật khẩu RentGG để xem thông tin đăng nhập.");
+            }
+            try {
+                rateLimiter.consume("reauth:" + callerId, Limit.perHour(5));
+            } catch (ApiException e) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "REAUTH_RATE_LIMITED"), null);
+                throw e;
+            }
+            if (!auth.passwordMatches(callerId, password)) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "WRONG_PASSWORD"), null);
+                throw ApiException.forbidden("REAUTH_FAILED", "Mật khẩu không đúng.");
+            }
         }
         try {
             rateLimiter.consume("credentials:" + orderId, Limit.perHour(props.credentials().rateLimitPerHour()));

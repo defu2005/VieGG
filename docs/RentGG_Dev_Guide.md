@@ -164,6 +164,34 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
   - Lỗi có sẵn, không do hàng 5: boot `dev` trên DB mới thất bại vì `DevDataSeeder.paid` ném `Số dư ví không đủ` (trên `origin/dev` cũng vậy). Đã queue một task để sửa.
   - Vận hành: lần đầu bật TOTP chỉ dựa vào mật khẩu; mất thiết bị cần reset tay (`docs/RentGG_Production_Deploy.md` B1b); phiên cũ không có `mfa` phải đăng nhập lại.
 
+## 3. Các mục còn lại của §4.1
+
+Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1, không phân tích lại từ đầu. Mỗi mục làm theo mẫu sau:
+
+| # | Mục | Khu vực | Xong khi | Kiểm thử |
+|---|---|---|---|---|
+| 5 | Re-auth khi xem credentials (D5) | `gameaccount/` (credentials) | Cờ `rentgg.credentials.require-reauth` có tác dụng | `[M]` |
+| 6 | Rate limit đăng nhập lũy tiến (§12.5) | `identity/` | Thời gian chờ tăng sau nhiều lần sai | `[M]` |
+| 7 | Tín hiệu lạm dụng khi vượt giới hạn xem credentials | `identity/`, `audit/` | Ghi `abuse_signals` khi vượt giới hạn | `[M]` |
+| 8 | Metrics còn thiếu (§16.2) | `shared/` (metrics) | Ba metric xuất hiện trên `/actuator/prometheus` | `[M]` |
+| 9 | MDC `userId` và `orderId` | `shared/` | Log có hai trường này | `[M]` |
+| 10 | Cảnh báo outbox kẹt và refund lỗi | `jobs/` | Có rule alert (file cấu hình) | `[M]` |
+| 11 | Endpoint quản trị còn thiếu | `identity/`, `approval/` | Danh sách chờ `verify-recovery`, danh sách user, tra audit | `[M]` |
+| 12 | Kháng nghị quyết định | `dispute/` | Chủ account có thể kháng nghị một lần | `[M]` |
+| 13 | Hồ sơ thông báo pháp lý (UC-20) | mới | Bảng và endpoint tiếp nhận, có hạn phản hồi | `[M]` |
+| 14 | Cảnh báo quá hạn phân xử (`deadline_at`) | `dispute/` | Job đánh dấu quá hạn | `[M]` |
+| 15 | Giới hạn body JSON 1 MB (§12.10) | `shared/` (web) | Body lớn hơn bị 413 | `[M]` |
+| 16 | Template thông báo theo sự kiện | `notification/` | Mỗi sự kiện có tiêu đề và nội dung riêng | `[M]` |
+| 17 | CI backend và frontend | `.github/` | Xem mục 1.2 | CI |
+
+---
+
+- **Kết quả (2026-11-20, nhánh `claude/row-09-credentials-reauth`): ĐÃ LÀM `[M]`.** Trước đây cờ `rentgg.credentials.require-reauth` không được đọc ở đâu cả; nay có tác dụng. Bật cờ: `GET /orders/{id}/credentials` trả 403 `REAUTH_REQUIRED` (không ghi `CREDENTIAL_VIEWED`, không đặt `credential_first_viewed_at`); `POST /orders/{id}/credentials` với `{password}` trả thông tin khi đúng mật khẩu, 403 `REAUTH_FAILED` khi sai. Mỗi lần thử (đúng hoặc sai) dùng một trong 5 lượt mỗi giờ theo người dùng (429 sau đó). Mọi lần từ chối ghi `CREDENTIAL_VIEW_DENIED` với lý do. Thứ tự kiểm tra: renter, tài khoản bị đình chỉ, cửa sổ thuê, re-auth, rồi giới hạn xem (lần từ chối không tốn lượt xem). Biến môi trường `RENTGG_CREDENTIALS_REQUIRE_REAUTH`, mặc định false. Test: `CredentialReauthIT` (5 test trong context riêng, pool 5, `@DirtiesContext`); điều khiển bỏ kiểm tra làm 3 test fail. Web: `OrderDetailPage` hỏi mật khẩu khi nhận `REAUTH_REQUIRED`. iOS và Android chưa có bước này, nên cờ giữ false cho đến khi có.
+
+## 4. Tích hợp bên ngoài (làm bằng mock trước)
+
+Mỗi tích hợp có hai checkbox: **`[M]` đạt với mock** và **`[S]` đạt với sandbox thật**. Mục `[S]` để trống cho đến khi bạn có khóa (Phụ lục A).
+
 ### 4.1 Cổng thanh toán (PSP)
 Có năm lớp: `VnpayGateway`, `MomoGateway`, `ZalopayGateway`, `PayosGateway`, và `PspHttp` (lớp HTTP dùng chung). Thư mục: `backend/src/main/java/com/rentgg/payment/infrastructure/psp/`.
 
@@ -281,6 +309,7 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 | `RENTGG_PUBLIC_BASE_URL` | URL backend công khai (HTTPS) | Dev: `localhost:8080` | Trang thanh toán của provider gọi lại được |
 | `RENTGG_FRONTEND_BASE_URL` | URL web nơi người trả tiền quay về (HTTPS) | Dev: `localhost:5273` | Redirect sau thanh toán về đúng trang |
 | `RENTGG_PAYMENT_PROVIDER` | Chọn provider (`FAKE`, `PAYOS`, `VNPAY`, `MOMO`, `ZALOPAY`) | Dev: `FAKE`; test mock từng adapter | Khởi động prod với `FAKE` phải bị từ chối (mục 2.0) |
+| `RENTGG_CREDENTIALS_REQUIRE_REAUTH` | Bật nhập lại mật khẩu RentGG khi xem thông tin đăng nhập (D5) | Dev/test: `false` | Bật, GET trả `REAUTH_REQUIRED`; POST với mật khẩu đúng trả thông tin |
 | `RENTGG_PAYMENT_FAKE_ENABLED` | Bật giả lập (chỉ dev) | Dev: `true` | Prod phải là `false` |
 | `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` | PayOS (ưu tiên) | Mock HTTP server (mục 4.1) | Tạo link thanh toán sandbox trả `checkoutUrl`; webhook thật được ký đúng |
 | `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | VNPay sandbox (đăng ký tại sandbox.vnpayment.vn) | Mock (mục 4.1) | Tạo URL thanh toán; IPN thật được nhận tại `/api/v1/payments/webhook/vnpay` |
