@@ -48,7 +48,12 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
 - **Kiểm thử:** xem log CI.
-- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky: fail 3/6 lần chạy (CI 1/1; local 2/5 gồm baseline pass, full suite fail và ba lần chạy lại có một fail). Chưa sửa, chưa tắt test. Cần một task riêng để serialize đặt chỗ theo tài khoản hoặc ánh xạ 40P01 thành `SLOT_UNAVAILABLE`.
+- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky. Lịch sử theo commit (cập nhật khi có kết quả mới):
+  - `44692352655` (`5e91584`, CI): **đỏ**, deadlock `concurrentBooking_exactlyOneWins`.
+  - `44705981405` (`e65c1d4`, CI push): **đỏ** vì không tải được Maven wrapper (`wget` tới repo.maven.apache.org). Lỗi hạ tầng, không phải test; chưa sửa.
+  - `44706483775` (`b24a31c`, CI PR): **xanh**, 184 test, 0 fail, 0 lỗi.
+  - `44708319565` (`6e01dd6`, CI PR): đang chạy khi ghi mục này.
+  - Local, cùng commit đầu: 2 fail trên 5 lần chạy `MoneyAndApprovalIT` (gồm 1 baseline pass, 1 full suite fail, 3 lần chạy lại: 2 pass, 1 fail).
 - **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
