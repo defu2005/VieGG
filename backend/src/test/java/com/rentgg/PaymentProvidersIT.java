@@ -52,6 +52,13 @@ class PaymentProvidersIT extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":100000,\"provider\":\"PAYOS\"}"))
                 .andExpect(status().isBadGateway());
         mvc.perform(post("/api/v1/payments/webhook/momo").content("{}")).andExpect(status().isBadRequest());
+        // Unknown provider: the webhook path is 404; a top-up naming it is refused as unavailable (400).
+        mvc.perform(post("/api/v1/payments/webhook/stripe").content("{}")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/wallet/topups").header("Authorization", bearer(u))
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":100000,\"provider\":\"STRIPE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAYMENT_PROVIDER_UNAVAILABLE"));
     }
 
     @Test

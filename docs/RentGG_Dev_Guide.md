@@ -169,12 +169,12 @@ Có năm lớp: `VnpayGateway`, `MomoGateway`, `ZalopayGateway`, `PayosGateway`,
 
 Cho **mỗi** adapter, viết contract test với mock HTTP server (WireMock hoặc MockWebServer):
 
-- [ ] **Tạo thanh toán:** request có đúng chữ ký, đúng tham số; response thành công trả URL thanh toán.
-- [ ] **Webhook hợp lệ:** chữ ký đúng → xác nhận thanh toán, cập nhật `payment_intents`.
-- [ ] **Webhook sai chữ ký:** → từ chối, ghi audit, không đổi trạng thái.
-- [ ] **Webhook phát lại (replay):** cùng một sự kiện gửi hai lần → chỉ xử lý một lần (idempotent).
-- [ ] **Hoàn tiền toàn phần và một phần:** số tiền đúng, không vượt số đã trả của từng payment.
-- [ ] **Timeout / 5xx:** retry có giới hạn, không đổi trạng thái sai.
+- [x] **Tạo thanh toán `[M]`:** request có đúng chữ ký, đúng tham số; response trả URL. PayOS, MoMo, ZaloPay có contract với mock server; VNPay kiểm tra URL với hash tính độc lập.
+- [x] **Webhook hợp lệ `[M]`:** chữ ký đúng → xác nhận thanh toán, cập nhật `payment_intents`, cộng ví một lần. PayOS và MoMo qua endpoint; ZaloPay và VNPay qua `PaymentProvidersIT` và contract.
+- [x] **Webhook sai chữ ký `[M]`:** → từ chối, ghi audit, không đổi trạng thái. PayOS (`PayosWebhookIT`), MoMo (`MomoWebhookIT`); ZaloPay và VNPay qua `PaymentProvidersIT`.
+- [x] **Webhook phát lại (replay) `[M]`:** chỉ cộng một lần, kể cả replay đồng thời (PayOS, `PayosWebhookIT`).
+- [ ] **Hoàn tiền toàn phần và một phần `[M]`:** *không triển khai ở mức PSP.* Không adapter nào gọi API hoàn tiền của PSP; hoàn tiền luôn cộng vào ví (`PaymentService.processRefund`). Ca trần qua nhiều payment được `OrderLifecycleIT` kiểm tra.
+- [x] **Timeout / 5xx `[M]`:** một lần thử, không retry; trả `ProviderException` (PayOS, ZaloPay). Client gửi lại với cùng Idempotency-Key. Lỗi gửi về client còn chứa URL endpoint: xem ghi chú bên dưới.
 - [ ] **`[S]` Sandbox thật:** tạo thanh toán thật trên sandbox, webhook thật, hoàn tiền thật. *Để trống đến khi có khóa.*
 
 Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); các adapter còn lại chỉ `[M]`.
@@ -183,7 +183,12 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
   - Test contract với `MockWebServer` (không Spring): PayOS (`PayosGatewayContractTest` 9, `PspHttpFailureTest` 5), MoMo (`MomoGatewayContractTest` 8), ZaloPay (`ZalopayGatewayContractTest` 7), VNPay (`VnpayGatewayContractTest` 1, URL tự kiểm bằng HMAC-SHA512 độc lập).
   - Endpoint (context mặc định, Postgres): PayOS (`PayosWebhookIT` 5: hợp lệ cộng một lần, chữ ký sai không đổi gì và có audit, replay đồng thời cộng đúng một lần, số tiền khác có audit, top-up tới endpoint chết trả 502 và giữ số dư), MoMo (`MomoWebhookIT` 2: hợp lệ trả 204 cộng một lần, chữ ký sai trả 400). Hợp đồng của `PaymentProvidersIT` cập nhật vì PAYOS và MOMO nay có khoá test: danh sách provider và webhook MoMo rỗng (400 thay vì 404) và top-up PAYOS (502).
   - Chưa cấu hình (không Spring): khoá trống thì `isConfigured()` false, provider không hiện, `require` ném `PAYMENT_PROVIDER_UNAVAILABLE` (`UnconfiguredProvidersTest` 2).
-  - Negative control (bỏ kiểm tra chữ ký, hoặc ký bằng khoá khác) làm test fail cho PayOS, MoMo, ZaloPay (outbound và callback) và VNPay (hash URL).
+  - Negative control, từng adapter (mỗi lần khôi phục code sau khi chạy):
+    - PayOS: bỏ kiểm tra chữ ký callback → 2 test contract và 1 test endpoint fail; ký outbound bằng khoá khác → test outbound fail.
+    - MoMo: bỏ kiểm tra chữ ký callback → test contract và `MomoWebhookIT` fail; ký outbound bằng khoá khác → test outbound fail.
+    - ZaloPay: ký outbound bằng `key1` sai → test outbound fail; bỏ kiểm tra `key2` → test callback sai khoá/sai số tiền và test redirect sai số tiền fail. (Test redirect hợp lệ vẫn pass, đúng như mong đợi.)
+    - VNPay: hash URL sai → `checkoutUrlCarriesTheDocumentedParametersAndAHashOverItsQuery` fail (surefire: `VnpayGatewayContractTest.java:41`). VNPay callback chỉ được kiểm tra bởi `PaymentProvidersIT`, không có contract riêng.
+  - Ghi chú vận hành: `createTopup` trả nguyên văn thông báo lỗi của PSP (`PaymentProvidersIT`/`PayosWebhookIT`: "Không gọi được cổng thanh toán: I/O error on POST request for \"http://127.0.0.1:1/...\"") cho client. Thông báo này chứa URL endpoint. Chưa sửa trong hàng này; đã queue task.
   - Hoàn tiền: không adapter nào gọi API hoàn tiền của PSP. Hoàn tiền luôn cộng vào ví người thuê (`processRefund`). Ô "hoàn tiền toàn phần/một phần" ghi là **không triển khai ở mức PSP**. Ca trần qua nhiều payment đã có trong `OrderLifecycleIT` (số tiền hoàn chia theo các payment của đơn).
   - Quyết định: không thêm retry. Mỗi lần gọi PSP thất bại đúng một lần; client gửi lại với cùng Idempotency-Key.
   - Phát hiện: 5xx bị từ chối bởi request factory (HttpURLConnection ném IOException), không phải do adapter kiểm tra status. Test probe `PspHttpFailureTest` ghi lại hành vi này.
