@@ -48,7 +48,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
 - **Kiểm thử:** xem log CI.
-- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky: fail 2/5 lần chạy gần đây, pass các lần còn lại. Chưa sửa, chưa tắt test. Cần một task riêng để serialize đặt chỗ theo tài khoản hoặc ánh xạ 40P01 thành `SLOT_UNAVAILABLE`.
+- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky: fail 3/6 lần chạy (CI 1/1; local 2/5 gồm baseline pass, full suite fail và ba lần chạy lại có một fail). Chưa sửa, chưa tắt test. Cần một task riêng để serialize đặt chỗ theo tài khoản hoặc ánh xạ 40P01 thành `SLOT_UNAVAILABLE`.
 - **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
@@ -80,6 +80,15 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Hiện trạng:** đã chặn `RENTGG_PAYMENT_FAKE_ENABLED=true` trên prod, nhưng **chưa chặn** `RENTGG_PAYMENT_PROVIDER=FAKE` khi `fake-enabled=false`.
 - **Xong khi:** unit test cho từng trường hợp, khởi động prod với giá trị sai phải thất bại có thông báo rõ.
 - **Kiểm thử:** `[M]`.
+- **Kết quả (2026-11-20, commit `e65c1d4`):** **ĐÃ LÀM.**
+  - Unit test: `StartupSafetyCheckTest`, 68 test pass; 56 fail khi chạy với code cũ (kiểm tra không vô nghĩa).
+  - Khởi động prod thật, PostgreSQL 16 cục bộ, DB `rentgg` (giá trị mock):
+    - `RENTGG_PAYMENT_PROVIDER=FAKE`, `RENTGG_MEDIA_STORAGE=db`, PAYOS đủ khóa: bị từ chối, `must not be FAKE on staging/prod (mock provider)`.
+    - PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=s3`, endpoint `ACCOUNT_ID` từ file mẫu: bị từ chối, `RENTGG_S3_ENDPOINT still holds a placeholder value`.
+    - PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=db`: khởi động thành công (`Started RentGgApplication` trong 6.9 s). Tiến trình sau đó được dừng thủ công.
+  - Ghi chú: khi nhiều giá trị sai cùng lúc, bean `mediaStore` được tạo trước `StartupSafetyCheck` nên thông báo S3 của `S3ObjectStorage` có thể hiện trước. Ứng dụng vẫn không khởi động. Chưa đổi thứ tự bean trong PR này.
+  - Lưu ý: `RENTGG_CORS_ALLOWED_ORIGINS` chỉ kiểm tra không rỗng, trong khi mục trên ghi "đã kiểm tra HTTPS". Chưa sửa.
+  - `RENTGG_PAYMENT_FAKE_ENABLED` trên staging vẫn được phép `true`; để nguyên, chờ quyết định.
 
 ### 2.1 Lọc dữ liệu nhạy cảm trong log (§16.1)
 - **Làm gì:** thêm bộ lọc che các khóa `password`, `token`, `secret`, `authorization`, `key`, `signature` trong log JSON và log text. Áp dụng cho cả nội dung message lẫn MDC.
