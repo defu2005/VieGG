@@ -52,7 +52,8 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
   - `44692352655` (`5e91584`, CI): **đỏ**, deadlock `concurrentBooking_exactlyOneWins`.
   - `44705981405` (`e65c1d4`, CI push): **đỏ** vì không tải được Maven wrapper (`wget` tới repo.maven.apache.org). Lỗi hạ tầng, không phải test; chưa sửa.
   - `44706483775` (`b24a31c`, CI PR): **xanh**, 184 test, 0 fail, 0 lỗi.
-  - `44708319565` (`6e01dd6`, CI PR): đang chạy khi ghi mục này.
+  - `44708319565` (`6e01dd6`, CI PR): **đỏ**, 184 test, 1 lỗi; log chỉ có `concurrentBooking_exactlyOneWins`.
+  - `44708631585` (`f009a08`, CI PR): **xanh**.
   - Local, cùng commit đầu: 2 fail trên 5 lần chạy `MoneyAndApprovalIT` (gồm 1 baseline pass, 1 full suite fail, 3 lần chạy lại: 2 pass, 1 fail).
 - **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
@@ -85,7 +86,10 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Hiện trạng:** đã chặn `RENTGG_PAYMENT_FAKE_ENABLED=true` trên prod, nhưng **chưa chặn** `RENTGG_PAYMENT_PROVIDER=FAKE` khi `fake-enabled=false`.
 - **Xong khi:** unit test cho từng trường hợp, khởi động prod với giá trị sai phải thất bại có thông báo rõ.
 - **Kiểm thử:** `[M]`.
-- **Kết quả (2026-11-20, commit `e65c1d4`):** **ĐÃ LÀM.**
+- **Kết quả (2026-11-20, commit `b0ab6be`):** **ĐÃ LÀM.**
+  - Bổ sung theo brief: từ chối `RENTGG_JWT_SECRET` bằng giá trị dev mặc định; từ chối `changeme`, `account_id`, `example` và chuỗi một ký tự lặp lại trong JWT, webhook secret và `RENTGG_CREDENTIAL_KEYS`. `xxx` không dùng cho secret vì base64 ngẫu nhiên chứa nó khoảng 1 trên 500, và credential key không đổi được sau khi đã mã hóa dữ liệu.
+  - Full suite trên `b0ab6be`: **197 test, 0 fail, 0 lỗi, BUILD SUCCESS**.
+  - Boot prod với JWT dev mặc định (PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=db`): bị từ chối, `RENTGG_JWT_SECRET must not be the dev default on staging/prod`.
   - Unit test: `StartupSafetyCheckTest`, 68 test pass; 56 fail khi chạy với code cũ (kiểm tra không vô nghĩa).
   - Khởi động prod thật, PostgreSQL 16 cục bộ, DB `rentgg` (giá trị mock):
     - `RENTGG_PAYMENT_PROVIDER=FAKE`, `RENTGG_MEDIA_STORAGE=db`, PAYOS đủ khóa: bị từ chối, `must not be FAKE on staging/prod (mock provider)`.
