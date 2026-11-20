@@ -30,6 +30,12 @@ public final class CurrentUser {
         return Optional.empty();
     }
 
+    /** True when the caller's access token carries a passed second factor (TOTP). */
+    public static boolean mfaVerified() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth instanceof JwtAuthenticationToken jwt && Boolean.TRUE.equals(jwt.getToken().getClaimAsBoolean("mfa"));
+    }
+
     /** Role codes (for display and audit; authorization should use {@link #has(Permission)}). */
     public static Set<String> roles() {
         return authorities().stream()

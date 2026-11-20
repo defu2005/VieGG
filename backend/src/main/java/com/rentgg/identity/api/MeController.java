@@ -67,7 +67,7 @@ public class MeController {
         // Same budget as login: stops guessing the current password with a stolen access token.
         rateLimiter.consume("password:" + CurrentUser.id(),
                 Limit.perMinute(props.rateLimit().loginPerMinute()), Limit.perHour(props.rateLimit().loginPerHour()));
-        return AuthController.TokenResponse.of(auth.changePassword(CurrentUser.id(), req.currentPassword(), req.newPassword()));
+        return AuthController.TokenResponse.of(auth.changePassword(CurrentUser.id(), req.currentPassword(), req.newPassword(), CurrentUser.mfaVerified()));
     }
 
     /** Logs out every device (including this one once the client drops its tokens). */

@@ -94,6 +94,12 @@
             <artifactId>logstash-logback-encoder</artifactId>
             <version>${logstash.version}</version>
         </dependency>
+        <!-- TOTP (RFC 6238) for the staff second factor (Dev Guide §2.4). -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
 
         <!-- Test -->
         <dependency>

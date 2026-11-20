@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -20,17 +21,22 @@ import java.util.UUID;
 public class PermissionJwtConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final ObjectProvider<AuthorityResolver> resolver;
+    private final boolean staffMfaRequired;
 
-    public PermissionJwtConverter(ObjectProvider<AuthorityResolver> resolver) {
+    public PermissionJwtConverter(ObjectProvider<AuthorityResolver> resolver, boolean staffMfaRequired) {
         this.resolver = resolver;
+        this.staffMfaRequired = staffMfaRequired;
     }
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         AuthorityResolver.Authorities a = resolve(jwt.getSubject());
-        List<GrantedAuthority> authorities = new ArrayList<>(a.roles().size() + a.permissions().size());
+        // Staff without a verified second factor keep their roles but get no permissions (Dev Guide §2.4).
+        boolean mfa = Boolean.TRUE.equals(jwt.getClaimAsBoolean("mfa"));
+        Set<String> permissions = a.staff() && staffMfaRequired && !mfa ? Set.of() : a.permissions();
+        List<GrantedAuthority> authorities = new ArrayList<>(a.roles().size() + permissions.size());
         a.roles().forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
-        a.permissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+        permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
         return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
     }
 

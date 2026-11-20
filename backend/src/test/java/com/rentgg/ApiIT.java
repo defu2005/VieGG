@@ -139,11 +139,11 @@ class ApiIT extends IntegrationTest {
         mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"password-1234\",\"displayName\":\"Me\",\"dateOfBirth\":\"1990-01-01\"}"))
                 .andExpect(status().isCreated());
-        var t1 = auth.login(email, "password-1234");
+        var t1 = auth.login(email, "password-1234", null);
         var t2 = auth.refresh(t1.refreshToken());
         assertApi(() -> auth.refresh(t1.refreshToken()), "UNAUTHENTICATED");
         assertApi(() -> auth.refresh(t2.refreshToken()), "UNAUTHENTICATED"); // whole family revoked
-        assertApi(() -> auth.login(email, "wrong-password"), "INVALID_CREDENTIALS");
+        assertApi(() -> auth.login(email, "wrong-password", null), "INVALID_CREDENTIALS");
         mvc.perform(get("/api/v1/listings/search")).andExpect(status().isOk());
     }
 
@@ -153,8 +153,8 @@ class ApiIT extends IntegrationTest {
         mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"password-1234\",\"displayName\":\"Old\",\"dateOfBirth\":\"1990-01-01\"}"))
                 .andExpect(status().isCreated());
-        var t1 = auth.login(email, "password-1234");
-        var t2 = auth.login(email, "password-1234");
+        var t1 = auth.login(email, "password-1234", null);
+        var t2 = auth.login(email, "password-1234", null);
         String bearer = "Bearer " + t1.accessToken();
 
         // Update display name (trimmed); blank is rejected.
@@ -185,9 +185,9 @@ class ApiIT extends IntegrationTest {
                         .content("{\"currentPassword\":\"password-1234\",\"newPassword\":\"password-5678\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.refreshToken").isNotEmpty());
         assertApi(() -> auth.refresh(t1.refreshToken()), "UNAUTHENTICATED");
-        assertApi(() -> auth.login(email, "password-1234"), "INVALID_CREDENTIALS");
-        var t3 = auth.login(email, "password-5678");
-        var t4 = auth.login(email, "password-5678");
+        assertApi(() -> auth.login(email, "password-1234", null), "INVALID_CREDENTIALS");
+        var t3 = auth.login(email, "password-5678", null);
+        var t4 = auth.login(email, "password-5678", null);
 
         // Logout everywhere revokes every refresh token.
         mvc.perform(post("/api/v1/me/logout-all").header("Authorization", "Bearer " + t3.accessToken()))

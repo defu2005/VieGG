@@ -25,8 +25,9 @@ public record RentGgProperties(
 
     public record Credentials(int rateLimitPerHour, boolean requireReauth, String keys, String activeKeyId) {}
 
+    /** {@code staffMfaRequired}: staff sessions without a TOTP code get no staff permissions (Dev Guide §2.4). */
     public record Security(String jwtSecret, Duration accessTokenTtl, Duration refreshTokenTtl,
-                           String corsAllowedOrigins) {}
+                           String corsAllowedOrigins, boolean staffMfaRequired) {}
 
     public record RateLimit(int loginPerMinute, int loginPerHour, int registerPerHour, int otpPerHour,
                             int ordersPerHour) {}

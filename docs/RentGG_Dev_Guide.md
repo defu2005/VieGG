@@ -147,6 +147,19 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Xong khi:** staff không có TOTP bị chặn truy cập trang quản trị; test với mã đúng, sai và đã dùng.
 - **Kiểm thử:** `[M]`.
 - **Ghi chú:** tài liệu xếp mục này ở Phase 1. Có thể bỏ qua nếu bạn chưa có tiền thật đi qua.
+- **Kết quả (2026-11-20, nhánh `claude/row-05-staff-totp`): BACKEND ĐÃ LÀM; WEB CHƯA.**
+  - Thứ tự hàng đợi cloud không có §2.4, nhưng brief đưa vào hàng đợi, nên làm theo brief.
+  - Cơ chế: cờ `rentgg.security.staff-mfa-required` (`RENTGG_STAFF_MFA_REQUIRED`, mặc định true; false ở `dev`; `StartupSafetyCheck` từ chối false trên staging/prod). Staff (vai trò có `roles.is_staff`) chưa xác thực không có quyền staff nào (vẫn có `ROLE_*`), nên mọi endpoint `@PreAuthorize` trả 403. Quyết định dựa vào `hasAuthority`; không endpoint nào dùng `hasRole`.
+  - Claim `mfa` trong access token; `refresh_tokens.mfa_verified` được giữ qua refresh; đổi mật khẩu và dev time travel giữ trạng thái của phiên hiện tại.
+  - TOTP: thư viện `dev.samstevens.totp:totp:1.7.1` (6 số, 30 giây, SHA-1), cửa sổ ±1 bước, mỗi bước chỉ dùng một lần (cập nhật có điều kiện), khóa 15 phút sau 5 lần sai. Bí mật mã hóa bằng `CredentialCipher` (khóa theo user id), không ghi log.
+  - Đăng nhập: staff đã đăng ký TOTP phải gửi `totpCode` (`MFA_REQUIRED`, `MFA_INVALID`, `MFA_LOCKED`). `AuthService.login` dùng `noRollbackFor` để ghi nhận lần sai. Staff chưa đăng ký đăng nhập không xác thực và chỉ có thể đăng ký (`/api/v1/me/mfa/totp/start`, `/confirm`), không có quyền khác.
+  - Migration `V31__staff_mfa.sql`: thêm cột `mfa_verified` và bảng `user_totp`.
+  - Test: `StaffMfaIT` 12 test (quyền 403/200, mã đúng/sai/đã dùng, ±1 chấp nhận, ±2 từ chối, hai đăng nhập đồng thời chỉ một thắng, khóa sau 5 lần sai và hết hạn theo clock, refresh giữ trạng thái, secret đã mã hóa, endpoint enrol); `TotpVectorsTest` (RFC 6238 Appendix B, 6 số, có số 0 đầu); `StartupSafetyCheckTest` (cờ tắt bị từ chối trên prod và staging).
+  - Negative control: vô hiệu hóa cổng trong converter làm test 403 fail.
+  - Full suite: 244 test, 0 fail, 0 lỗi (run này deadlock đã biết pass).
+  - Boot prod với `rentgg_app`, Flyway bằng `rentgg_migrator` trên DB thật: migrator áp dụng V31, khởi động thành công.
+  - Chưa làm: web (`LoginPage.tsx`, `AuthContext.tsx`, `RouteGuards.tsx`, `client.ts`). Vì cờ mặc định bật, staff trên prod không đăng nhập được vào trang quản trị cho đến khi form đăng nhập gửi mã. Ứng dụng iOS và Android chưa có ô nhập mã.
+  - Giới hạn: lần đầu đăng ký chỉ dựa vào mật khẩu; mất thiết bị cần reset tay trong database. Phiên cũ (trước V31) không có `mfa`: staff phải đăng nhập lại kèm mã.
 
 ---
 

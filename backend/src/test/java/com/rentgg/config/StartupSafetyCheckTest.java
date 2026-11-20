@@ -78,7 +78,8 @@ class StartupSafetyCheckTest {
                 new Order(30, 60, 30, 10),
                 new Rotation(60),
                 new Credentials(10, true, v.get("RENTGG_CREDENTIAL_KEYS"), v.get("RENTGG_CREDENTIAL_ACTIVE_KEY_ID")),
-                new Security(v.get("RENTGG_JWT_SECRET"), Duration.ofMinutes(15), Duration.ofDays(30), v.get("RENTGG_CORS_ALLOWED_ORIGINS")),
+                new Security(v.get("RENTGG_JWT_SECRET"), Duration.ofMinutes(15), Duration.ofDays(30), v.get("RENTGG_CORS_ALLOWED_ORIGINS"),
+                        Boolean.parseBoolean(v.getOrDefault("RENTGG_STAFF_MFA_REQUIRED", "true"))),
                 new RateLimit(10, 100, 10, 5, 20),
                 new Approval(Duration.ofMinutes(30)),
                 new Dispute(Duration.ofHours(72), Duration.ofHours(4)),
@@ -113,6 +114,14 @@ class StartupSafetyCheckTest {
     @ValueSource(strings = {"prod", "staging"})
     void validConfigStarts(String profile) {
         assertThatCode(() -> check(validVars(), profile).check()).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"prod", "staging"})
+    void staffMfaCannotBeTurnedOffOnStagingOrProd(String profile) {
+        Map<String, String> v = validVars();
+        v.put("RENTGG_STAFF_MFA_REQUIRED", "false");
+        assertRefused(v, profile, "RENTGG_STAFF_MFA_REQUIRED must be true on staging/prod");
     }
 
     @Test

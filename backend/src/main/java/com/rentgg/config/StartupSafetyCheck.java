@@ -63,6 +63,9 @@ public class StartupSafetyCheck {
                     || DEV_WEBHOOK_SECRET.equals(webhook)) {
                 throw new IllegalStateException("Dev secrets must not be used on staging/prod");
             }
+            if (!props.security().staffMfaRequired()) {
+                throw new IllegalStateException("RENTGG_STAFF_MFA_REQUIRED must be true on staging/prod");
+            }
             if (DEV_JWT_SECRET.equals(jwt)) {
                 throw new IllegalStateException("RENTGG_JWT_SECRET must not be the dev default on staging/prod");
             }

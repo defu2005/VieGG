@@ -51,7 +51,7 @@ public class AuthController {
     public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         rateLimiter.consume("login:" + http.getRemoteAddr() + ":" + req.email().trim().toLowerCase(),
                 Limit.perMinute(props.rateLimit().loginPerMinute()), Limit.perHour(props.rateLimit().loginPerHour()));
-        return TokenResponse.of(auth.login(req.email(), req.password()));
+        return TokenResponse.of(auth.login(req.email(), req.password(), req.totpCode()));
     }
 
     @PostMapping("/refresh")
@@ -76,7 +76,8 @@ public class AuthController {
         }
     }
 
-    public record LoginRequest(@NotBlank String email, @NotBlank String password) {
+    /** {@code totpCode}: required only for staff with an enrolled authenticator. */
+    public record LoginRequest(@NotBlank String email, @NotBlank String password, String totpCode) {
         @Override
         public String toString() {
             return "LoginRequest[email=" + email + ", password=***]";
