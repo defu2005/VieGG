@@ -37,7 +37,10 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Làm gì:** `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test`
 - **Khu vực:** `backend/src/test/`
 - **Xong khi:** ghi lại số test chạy, số lỗi, số bỏ qua; mọi test đỏ có ghi chú nguyên nhân.
-- **Kết quả thực tế (2026-11-20):** CHƯA CHẠY CỤC BỘ. Database `rentgg_test` chưa có, role `rentgg` không có quyền CREATEDB, và không có thông tin tài khoản superuser để tạo. Không ghi số liệu. Baseline = CI (mục 1.2). Agent cloud phải làm bước 0 là chạy test trên Postgres service và ghi số liệu thật vào đây.
+- **Kết quả thực tế (2026-11-20, PostgreSQL 16.15 cục bộ, `rentgg_test`):**
+  - Baseline trước mọi thay đổi (commit `dev` 5828bd2): **116 test, 0 lỗi, 0 fail, 0 skip**, BUILD SUCCESS.
+  - Sau §2.0 (commit `e65c1d4`): **184 test, 0 fail, 1 lỗi**. Lỗi duy nhất là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` (xem 1.2). Lượng test tăng 68 từ `StartupSafetyCheckTest`.
+  - Chạy lại riêng `MoneyAndApprovalIT` 3 lần trên cùng commit: 2 pass, 1 lỗi.
 - **Kiểm thử:** chính lệnh trên `[M]` (DB thật cục bộ nhưng không gọi dịch vụ ngoài).
 
 ### 1.2 CI xanh lần đầu
@@ -45,7 +48,8 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
 - **Kiểm thử:** xem log CI.
-- **Kết quả thực tế (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
+- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky: fail 2/5 lần chạy gần đây, pass các lần còn lại. Chưa sửa, chưa tắt test. Cần một task riêng để serialize đặt chỗ theo tài khoản hoặc ánh xạ 40P01 thành `SLOT_UNAVAILABLE`.
+- **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
 Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là một checklist:
