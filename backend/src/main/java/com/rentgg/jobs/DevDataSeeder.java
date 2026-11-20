@@ -183,8 +183,8 @@ public class DevDataSeeder implements ApplicationRunner {
         approvals.create(support, ActionType.SELLER_HOLD_EARLY_RELEASE,
                 Map.of("orderId", lateCancel.id().toString()), "TRUSTED_SELLER", "seed-hold-release");
 
-        log.info("Dev seed created. Users *@rentgg.dev (password {}). Orders: confirmed={} awaiting={} quickShort={} "
-                        + "quickLong={}. See docs/RentGG_Dev_Seed.md", DEV_PASSWORD, confirmed.id(), awaiting.id(),
+        log.info("Dev seed created. Users *@rentgg.dev (password is DevDataSeeder.DEV_PASSWORD). Orders: confirmed={} awaiting={} quickShort={} "
+                        + "quickLong={}. See docs/RentGG_Dev_Seed.md", confirmed.id(), awaiting.id(),
                 quickShort.id(), quickLong.id());
     }
 

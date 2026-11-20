@@ -2,6 +2,12 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
+    <!-- Text output (dev, test): %m and %wEx are masked by these converters; the stock console appender is kept. -->
+    <conversionRule conversionWord="m" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="msg" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="message" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="wEx" converterClass="com.rentgg.shared.logging.MaskingThrowableConverter"/>
+
     <springProfile name="dev,test">
         <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
         <root level="INFO">
@@ -16,6 +22,9 @@
                 <includeMdcKeyName>userId</includeMdcKeyName>
                 <includeMdcKeyName>orderId</includeMdcKeyName>
                 <includeMdcKeyName>requestPath</includeMdcKeyName>
+                <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+                    <valueMasker class="com.rentgg.shared.logging.SensitiveJsonValueMasker"/>
+                </jsonGeneratorDecorator>
             </encoder>
         </appender>
         <root level="INFO">

@@ -104,6 +104,15 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Khu vực:** cấu hình logback và `shared/`.
 - **Xong khi:** test ghi log với các khóa trên và kiểm tra output không chứa giá trị gốc.
 - **Kiểm thử:** `[M]`.
+- **Kết quả (2026-11-20, nhánh `claude/row-02-log-masking`): ĐÃ LÀM.**
+  - Cơ chế: `SensitiveDataMasker` che giá trị của khóa nhạy cảm (password, token, secret, signature, authorization, *key*) dạng `key=v`, `key: v`, `"key":"v"`, `"key" : "v"`, dạng escape JSON, và dạng có nháy đơn/kép. Giá trị có nháy được che tới nháy đóng. Dạng `Bearer ...` được che toàn bộ.
+  - Text (dev, test): converter cho `%m`/`%msg`/`%message` và `%wEx`, không che cả dòng. Lý do: che cả dòng làm tên logger như `TokenService` bị đọc thành khóa (đã chứng minh: "Started fine" thành "**** fine").
+  - JSON (prod): `MaskingJsonGeneratorDecorator` với `SensitiveJsonValueMasker`, che mọi giá trị chuỗi, kể cả `stack_trace` và MDC trong whitelist.
+  - `DevDataSeeder` không còn in mật khẩu dev vào log.
+  - Test: `SensitiveDataMaskerTest` 19 test; `LogbackConfigTest` 5 test chạy qua `logback-spring.xml` thật (profile `test` và `prod`). Negative control: trên config cũ, 4/5 test cấu hình fail (test probe tên logger pass cả hai, đúng như kỳ vọng).
+  - Full suite: 221 test, 0 fail, 0 lỗi (run này `concurrentBooking_exactlyOneWins` pass).
+  - Boot prod với JSON logging: `Started RentGgApplication` xuất hiện trong dòng JSON hợp lệ.
+  - Giới hạn: giá trị không nháy có khoảng trắng chỉ bị che tới khoảng trắng đầu tiên; khóa ngoài danh sách (ví dụ `vnp_SecureHash`, `mac`) không được che; `StructuredArguments` và `Markers` không được dùng trong code nên không có đường đưa tên trường nhạy cảm vào JSON.
 
 ### 2.2 Tách quyền user DB (§5.4, §14.3)
 - **Làm gì:** tạo hai role `rentgg_app` (không có TRUNCATE/DROP) và `rentgg_migrator` (chạy Flyway). Thêm vào `deploy/docker-compose.prod.yml`, `deploy/.env.prod.example`, và cấu hình `spring.datasource` (tách user cho migration và runtime).
