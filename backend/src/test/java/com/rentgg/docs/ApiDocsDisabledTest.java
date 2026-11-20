@@ -5,6 +5,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,8 +31,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "rentgg.payment.payos.api-key=a1b2c3d4-apikey",
         "rentgg.payment.payos.checksum-key=9f8e7d6c-checksum",
         "rentgg.media.storage=db",
-        "rentgg.jobs.enabled=false"})
+        "rentgg.jobs.enabled=false",
+        // Each cached context keeps its own pool; CI Postgres allows 100 connections in total.
+        "spring.datasource.hikari.maximum-pool-size=2",
+        "spring.datasource.hikari.minimum-idle=0"})
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+", disabledReason = "TEST_DB_URL is not set")
 abstract class ApiDocsDisabledTest {
 
