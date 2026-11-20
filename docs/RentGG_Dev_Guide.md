@@ -164,6 +164,32 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
   - Lỗi có sẵn, không do hàng 5: boot `dev` trên DB mới thất bại vì `DevDataSeeder.paid` ném `Số dư ví không đủ` (trên `origin/dev` cũng vậy). Đã queue một task để sửa.
   - Vận hành: lần đầu bật TOTP chỉ dựa vào mật khẩu; mất thiết bị cần reset tay (`docs/RentGG_Production_Deploy.md` B1b); phiên cũ không có `mfa` phải đăng nhập lại.
 
+## 3. Các mục còn lại của §4.1
+
+Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1, không phân tích lại từ đầu. Mỗi mục làm theo mẫu sau:
+
+| # | Mục | Khu vực | Xong khi | Kiểm thử |
+|---|---|---|---|---|
+| 5 | Re-auth khi xem credentials (D5) | `gameaccount/` (credentials) | Cờ `rentgg.credentials.require-reauth` có tác dụng | `[M]` |
+| 6 | Rate limit đăng nhập lũy tiến (§12.5) | `identity/` | Thời gian chờ tăng sau nhiều lần sai | `[M]` |
+| 7 | Tín hiệu lạm dụng khi vượt giới hạn xem credentials | `identity/`, `audit/` | Ghi `abuse_signals` khi vượt giới hạn | `[M]` |
+| 8 | Metrics còn thiếu (§16.2) | `shared/` (metrics) | Ba metric xuất hiện trên `/actuator/prometheus` | `[M]` |
+| 9 | MDC `userId` và `orderId` | `shared/` | Log có hai trường này | `[M]` |
+| 10 | Cảnh báo outbox kẹt và refund lỗi | `jobs/` | Có rule alert (file cấu hình) | `[M]` |
+| 11 | Endpoint quản trị còn thiếu | `identity/`, `approval/` | Danh sách chờ `verify-recovery`, danh sách user, tra audit | `[M]` |
+| 12 | Kháng nghị quyết định | `dispute/` | Chủ account có thể kháng nghị một lần | `[M]` |
+| 13 | Hồ sơ thông báo pháp lý (UC-20) | mới | Bảng và endpoint tiếp nhận, có hạn phản hồi | `[M]` |
+| 14 | Cảnh báo quá hạn phân xử (`deadline_at`) | `dispute/` | Job đánh dấu quá hạn | `[M]` |
+| 15 | Giới hạn body JSON 1 MB (§12.10) | `shared/` (web) | Body lớn hơn bị 413 | `[M]` |
+| 16 | Template thông báo theo sự kiện | `notification/` | Mỗi sự kiện có tiêu đề và nội dung riêng | `[M]` |
+| 17 | CI backend và frontend | `.github/` | Xem mục 1.2 | CI |
+
+---
+
+## 4. Tích hợp bên ngoài (làm bằng mock trước)
+
+Mỗi tích hợp có hai checkbox: **`[M]` đạt với mock** và **`[S]` đạt với sandbox thật**. Mục `[S]` để trống cho đến khi bạn có khóa (Phụ lục A).
+
 ### 4.1 Cổng thanh toán (PSP)
 Có năm lớp: `VnpayGateway`, `MomoGateway`, `ZalopayGateway`, `PayosGateway`, và `PspHttp` (lớp HTTP dùng chung). Thư mục: `backend/src/main/java/com/rentgg/payment/infrastructure/psp/`.
 
