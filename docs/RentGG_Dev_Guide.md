@@ -179,6 +179,19 @@ Cho **mỗi** adapter, viết contract test với mock HTTP server (WireMock ho�
 
 Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); các adapter còn lại chỉ `[M]`.
 
+- **Kết quả (2026-11-20, nhánh `claude/row-06-psp-contract`): ĐÃ LÀM `[M]`; `[S]` chưa làm.**
+  - Test contract với `MockWebServer` (không Spring): PayOS (`PayosGatewayContractTest` 9, `PspHttpFailureTest` 5), MoMo (`MomoGatewayContractTest` 8), ZaloPay (`ZalopayGatewayContractTest` 7), VNPay (`VnpayGatewayContractTest` 1, URL tự kiểm bằng HMAC-SHA512 độc lập).
+  - Endpoint (context mặc định, Postgres): PayOS (`PayosWebhookIT` 5: hợp lệ cộng một lần, chữ ký sai không đổi gì và có audit, replay đồng thời cộng đúng một lần, số tiền khác có audit, top-up tới endpoint chết trả 502 và giữ số dư), MoMo (`MomoWebhookIT` 2: hợp lệ trả 204 cộng một lần, chữ ký sai trả 400). Hợp đồng của `PaymentProvidersIT` cập nhật vì PAYOS và MOMO nay có khoá test: danh sách provider và webhook MoMo rỗng (400 thay vì 404) và top-up PAYOS (502).
+  - Chưa cấu hình (không Spring): khoá trống thì `isConfigured()` false, provider không hiện, `require` ném `PAYMENT_PROVIDER_UNAVAILABLE` (`UnconfiguredProvidersTest` 2).
+  - Negative control (bỏ kiểm tra chữ ký, hoặc ký bằng khoá khác) làm test fail cho PayOS, MoMo, ZaloPay (outbound và callback) và VNPay (hash URL).
+  - Hoàn tiền: không adapter nào gọi API hoàn tiền của PSP. Hoàn tiền luôn cộng vào ví người thuê (`processRefund`). Ô "hoàn tiền toàn phần/một phần" ghi là **không triển khai ở mức PSP**. Ca trần qua nhiều payment đã có trong `OrderLifecycleIT` (số tiền hoàn chia theo các payment của đơn).
+  - Quyết định: không thêm retry. Mỗi lần gọi PSP thất bại đúng một lần; client gửi lại với cùng Idempotency-Key.
+  - Phát hiện: 5xx bị từ chối bởi request factory (HttpURLConnection ném IOException), không phải do adapter kiểm tra status. Test probe `PspHttpFailureTest` ghi lại hành vi này.
+  - PayOS: `code` trong envelope callback nằm ngoài chữ ký (chỉ `data` được ký).
+  - Giới hạn: test chỉ dùng mock. Đối chiếu với nhà cung cấp thật là `[S]`, chưa xác minh.
+  - CI: thêm bước thử lại tải Maven wrapper ba lần (`.github/workflows/backend.yml`).
+  - Full suite: 286 test, 0 fail, 0 lỗi.
+
 ### 4.2 Ảnh và video trên S3/R2
 - **Hiện trạng:** `MediaObjectStorageIT` đã dùng `InMemoryStorage` (mock), không gọi S3 thật.
 - **Làm gì:**

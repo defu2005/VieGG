@@ -43,11 +43,8 @@ class PayosWebhookIT extends IntegrationTest {
         return "amount=" + amount + "&code=00&desc=success&orderCode=" + orderCode + "&reference=&unknownField=x";
     }
 
-    /** HMAC-SHA256 hex, written here with javax.crypto so the test does not reuse the adapter's helper. */
-    private static String sign(String key, String text) throws Exception {
-        javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
-        mac.init(new javax.crypto.spec.SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return java.util.HexFormat.of().formatHex(mac.doFinal(text.getBytes(StandardCharsets.UTF_8)));
+    private static String sign(String key, String text) {
+        return com.rentgg.support.TestHmac.sha256Hex(key, text);
     }
 
     private String webhook(long orderCode, long amount, String key) throws Exception {
@@ -155,5 +152,20 @@ class PayosWebhookIT extends IntegrationTest {
                 () -> payments.createTopup(payer, 100_000, key, "payos", "10.0.0.7"));
         assertThat(second.status().value()).isEqualTo(502);
         assertThat(walletBalance(payer)).isZero();
+    }
+    /** A correctly signed webhook for a different amount: nothing is credited, and the mismatch is audited. */
+    @Test
+    void validSignatureWithADifferentAmountCreditsNothingAndIsAudited() throws Exception {
+        UUID payer = user();
+        long orderCode = 7_000_000_004L;
+        PaymentIntent pi = pendingTopup(payer, 150_000, orderCode);
+        long before = jdbc.queryForObject("select count(*) from audit_logs where action = 'WEBHOOK_AMOUNT_MISMATCH'", Long.class);
+
+        postWebhook(webhook(orderCode, 999_000, CHECKSUM)).andExpect(status().isOk());
+
+        assertThat(walletBalance(payer)).isZero();
+        assertThat(intentRepo.findById(pi.getId()).orElseThrow().getStatus()).isEqualTo("CREATED");
+        long after = jdbc.queryForObject("select count(*) from audit_logs where action = 'WEBHOOK_AMOUNT_MISMATCH'", Long.class);
+        assertThat(after).isEqualTo(before + 1);
     }
 }

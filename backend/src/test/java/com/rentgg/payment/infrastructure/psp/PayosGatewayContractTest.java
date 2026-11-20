@@ -8,6 +8,7 @@ import com.rentgg.payment.application.PaymentGateway;
 import com.rentgg.payment.application.PaymentGateway.CallbackRequest;
 import com.rentgg.payment.application.PaymentGateway.CheckoutRequest;
 import com.rentgg.payment.application.PaymentGateway.ProviderException;
+import com.rentgg.support.TestHmac;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -15,12 +16,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -56,10 +54,8 @@ class PayosGatewayContractTest {
         server.shutdown();
     }
 
-    static String hmacSha256Hex(String key, String text) throws Exception {
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return HexFormat.of().formatHex(mac.doFinal(text.getBytes(StandardCharsets.UTF_8)));
+    static String hmacSha256Hex(String key, String text) {
+        return TestHmac.sha256Hex(key, text);
     }
 
     private CheckoutRequest checkoutRequest(long amount) {
@@ -179,5 +175,47 @@ class PayosGatewayContractTest {
         ObjectNode d = data(4_242_000_111L, 150_000);
         assertThatThrownBy(() -> gateway.verifyCallback(req(callback(d, null))))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+    // ---- Return: the redirect has no signature, so the status is asked from the provider
+
+    private CallbackRequest returnRequest(String orderCode) {
+        return new CallbackRequest("GET", Map.of("orderCode", orderCode), Map.of(), new byte[0]);
+    }
+
+    private void answerStatus(String status) {
+        server.enqueue(new MockResponse().setHeader("Content-Type", "application/json")
+                .setBody("{\"code\":\"00\",\"data\":{\"status\":\"" + status + "\",\"amount\":150000}}"));
+    }
+
+    @Test
+    void returnAsksThePaymentStatusAndMapsIt() throws Exception {
+        answerStatus("PAID");
+        PaymentGateway.Verified v = gateway.verifyReturn(returnRequest("4242000111"));
+
+        RecordedRequest asked = server.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(asked.getMethod()).isEqualTo("GET");
+        assertThat(asked.getPath()).isEqualTo("/v2/payment-requests/4242000111");
+        assertThat(asked.getHeader("x-client-id")).isEqualTo(CLIENT);
+        assertThat(asked.getHeader("x-api-key")).isEqualTo(API_KEY);
+        assertThat(v.signatureValid()).isTrue();
+        assertThat(v.payload().status()).isEqualTo("SUCCEEDED");
+        assertThat(v.payload().amount()).isEqualTo(150_000);
+    }
+
+    @Test
+    void returnStatusesMapToSucceededFailedOrPending() {
+        answerStatus("CANCELLED");
+        assertThat(gateway.verifyReturn(returnRequest("1")).payload().status()).isEqualTo("FAILED");
+        answerStatus("EXPIRED");
+        assertThat(gateway.verifyReturn(returnRequest("2")).payload().status()).isEqualTo("FAILED");
+        answerStatus("PENDING");
+        assertThat(gateway.verifyReturn(returnRequest("3")).payload().status()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void aNonSuccessCodeFromTheStatusCallIsNotVerified() {
+        server.enqueue(new MockResponse().setHeader("Content-Type", "application/json")
+                .setBody("{\"code\":\"101\",\"desc\":\"Sai khoa\"}"));
+        assertThat(gateway.verifyReturn(returnRequest("4")).signatureValid()).isFalse();
     }
 }

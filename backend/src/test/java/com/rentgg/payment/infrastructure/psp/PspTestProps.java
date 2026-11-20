@@ -20,6 +20,26 @@ final class PspTestProps {
     private PspTestProps() {}
 
     static RentGgProperties withPayos(Payment.Payos payos) {
+        return of(payos, new Payment.Momo("", "", "", ""), new Payment.Zalopay("", "", "", ""),
+                new Payment.Vnpay("", "", ""));
+    }
+
+    static RentGgProperties withMomo(Payment.Momo momo) {
+        return of(new Payment.Payos("", "", "", ""), momo, new Payment.Zalopay("", "", "", ""),
+                new Payment.Vnpay("", "", ""));
+    }
+
+    static RentGgProperties withZalopay(Payment.Zalopay zalopay) {
+        return of(new Payment.Payos("", "", "", ""), new Payment.Momo("", "", "", ""), zalopay,
+                new Payment.Vnpay("", "", ""));
+    }
+
+    static RentGgProperties withVnpay(Payment.Vnpay vnpay) {
+        return of(new Payment.Payos("", "", "", ""), new Payment.Momo("", "", "", ""),
+                new Payment.Zalopay("", "", "", ""), vnpay);
+    }
+
+    static RentGgProperties of(Payment.Payos payos, Payment.Momo momo, Payment.Zalopay zalopay, Payment.Vnpay vnpay) {
         return new RentGgProperties(new Order(15, 30, 10, 10), new Rotation(60),
                 new Credentials(10, true, "", ""),
                 new Security("", Duration.ofMinutes(15), Duration.ofDays(14), "", true),
@@ -27,7 +47,6 @@ final class PspTestProps {
                 new Dispute(Duration.ofHours(72), Duration.ofHours(4)), new Jobs(false, "0 * * * * *", 100),
                 new Outbox(10),
                 new Payment("PAYOS", "", "https://rentgg.test", "https://rentgg.test", false,
-                        new Payment.Vnpay("", "", ""), new Payment.Momo("", "", "", ""),
-                        new Payment.Zalopay("", "", "", ""), payos));
+                        vnpay, momo, zalopay, payos));
     }
 }
