@@ -1,0 +1,88 @@
+# Production stack trên 1 VPS (2 vCPU / 4 GB là đủ): Postgres + backend + Caddy (HTTPS, web tĩnh, /api) + backup.
+# Ảnh/video nằm trên Cloudflare R2, không nằm trong Postgres.
+#
+#   cd deploy
+#   cp .env.prod.example .env.prod   # rồi điền giá trị thật
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Hướng dẫn đầy đủ: docs/RentGG_Production_Deploy.md
+name: rentgg
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rentgg
+      POSTGRES_USER: rentgg
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TZ: UTC
+    # Hợp với VPS 4 GB, phần còn lại cho JVM.
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=60
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    # Không mở cổng ra ngoài: chỉ app và backup trong mạng nội bộ của compose truy cập được.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rentgg -d rentgg"]
+      interval: 5s
+      retries: 20
+    mem_limit: 1g
+
+  app:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/rentgg
+      SPRING_DATASOURCE_USERNAME: rentgg
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
+      TZ: UTC
+    # Không publish cổng: Caddy gọi app:8080 trong mạng nội bộ.
+    mem_limit: 1500m
+    stop_grace_period: 40s
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      RENTGG_DOMAIN: ${RENTGG_DOMAIN:?RENTGG_DOMAIN is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required (Let's Encrypt)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 256m
+
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env.prod
+    environment:
+      PGHOST: db
+      PGUSER: rentgg
+      PGDATABASE: rentgg
+      PGPASSWORD: ${DB_PASSWORD}
+    mem_limit: 256m
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+  caddy_config: {}
