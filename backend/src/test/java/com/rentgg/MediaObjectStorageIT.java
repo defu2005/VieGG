@@ -3,6 +3,16 @@ package com.rentgg;
 import com.rentgg.jobs.media.MediaBackfill;
 import com.rentgg.shared.media.ObjectStorage;
 import com.rentgg.support.IntegrationTest;
+import com.rentgg.dispute.application.DisputeService;
+import com.rentgg.dispute.application.DisputeView;
+import com.rentgg.dispute.domain.DisputeType;
+import com.rentgg.helpdesk.application.HelpdeskService;
+import com.rentgg.helpdesk.domain.TicketCategory;
+import com.rentgg.order.application.HandoverService;
+import com.rentgg.order.application.OrderView;
+import java.time.Duration;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -72,6 +82,9 @@ class MediaObjectStorageIT extends IntegrationTest {
     }
 
     @Autowired InMemoryStorage storage;
+    @Autowired DisputeService disputes;
+    @Autowired HandoverService credentials;
+    @Autowired HelpdeskService helpdesk;
     @Autowired MediaBackfill backfill;
 
     @Test
@@ -102,12 +115,54 @@ class MediaObjectStorageIT extends IntegrationTest {
         return jdbc.queryForObject("select count(*) from listing_images where storage_key is null", Long.class);
     }
 
-    /** Upload through the real path, then turn the row into a pre-storage row: bytes in the DB, no object. */
+    private static final java.util.concurrent.atomic.AtomicInteger POSITION = new java.util.concurrent.atomic.AtomicInteger(1000);
+
+    /**
+     * Inserts a listing image directly with SQL, as a row written before object storage was on: bytes in the DB, no
+     * object. It does not go through the upload endpoint, which would store the bytes in the bucket at once.
+     */
     private UUID preStorageRow(UUID listingId, byte[] bytes) throws Exception {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into listing_images (id, listing_id, position, content_type, size_bytes, data) "
-                + "values (?, ?, ?, 'image/png', ?, ?)", id, listingId, 1 + (int) (Math.random() * 1000), bytes.length, bytes);
+                + "values (?, ?, ?, 'image/png', ?, ?)", id, listingId, POSITION.incrementAndGet(), bytes.length, bytes);
         return id;
+    }
+
+    /** The dispute and support attachment tables that backfill also moves, each with one pre-storage row. */
+    @Test
+    void backfillMovesDisputeAndSupportAttachmentsUnderTheirOwnFolders() {
+        storage.reset();
+        backfill.run();
+        Setup s = standardListing();
+        UUID renter = user();
+        OrderView o = paidOrder(renter, s, Duration.ofHours(1), 180);
+        advanceAndRun(Duration.ofHours(1));
+        credentials.viewCredentials(renter, o.id());
+        clock.advance(Duration.ofMinutes(5));
+        DisputeView dispute = disputes.open(renter, o.id(), DisputeType.RENTER_LOGIN_FAILED, "wrong password", List.of());
+        var ticket = helpdesk.open(renter, "Hỏi phí", TicketCategory.QUESTION, null, "Phí bao nhiêu?");
+
+        UUID disputeAtt = UUID.randomUUID();
+        UUID supportAtt = UUID.randomUUID();
+        byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3};
+        jdbc.update("insert into dispute_attachments (id, dispute_id, uploaded_by, content_type, size_bytes, data) "
+                + "values (?, ?, ?, 'image/jpeg', ?, ?)", disputeAtt, dispute.id(), renter, jpeg.length, jpeg);
+        jdbc.update("insert into support_attachments (id, ticket_id, uploaded_by, content_type, size_bytes, data) "
+                + "values (?, ?, ?, 'image/jpeg', ?, ?)", supportAtt, ticket.id(), renter, jpeg.length, jpeg);
+
+        // Counts every table backfill moves: at least the two rows inserted here.
+        assertThat(backfill.run()).isGreaterThanOrEqualTo(2);
+        assertThat(jdbc.queryForObject("select storage_key from dispute_attachments where id = ?", String.class, disputeAtt))
+                .isEqualTo("dispute-attachments/" + dispute.id() + "/" + disputeAtt);
+        assertThat(jdbc.queryForObject("select data is null from dispute_attachments where id = ?", Boolean.class, disputeAtt))
+                .isTrue();
+        assertThat(storage.objects.get("dispute-attachments/" + dispute.id() + "/" + disputeAtt)).containsExactly(jpeg);
+
+        assertThat(jdbc.queryForObject("select storage_key from support_attachments where id = ?", String.class, supportAtt))
+                .isEqualTo("support-attachments/" + ticket.id() + "/" + supportAtt);
+        assertThat(jdbc.queryForObject("select data is null from support_attachments where id = ?", Boolean.class, supportAtt))
+                .isTrue();
+        assertThat(storage.objects.get("support-attachments/" + ticket.id() + "/" + supportAtt)).containsExactly(jpeg);
     }
 
     static String sha256(byte[] data) throws Exception {
