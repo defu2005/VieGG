@@ -215,6 +215,9 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 
 ### 4.3 Kênh thông báo khác (email, push)
 - **Hiện trạng:** không tìm thấy adapter email hay push trong code. Nếu sau này thêm, làm theo mẫu 4.1 (`[M]` + `[S]`).
+- **Kết quả kiểm tra (2026-11-20, nhánh `claude/row-08-notify-audit`): không có adapter kênh ngoài.** Đã tìm trong `backend/src/main` và `pom.xml` các từ khoá `JavaMailSender`, `javax.mail`, `jakarta.mail`, `smtp`, `firebase`, `APNs`, `fcm`, `webpush`, `mailgun`, `sendgrid`: không có kết quả.
+  - Thông báo hiện chỉ là bản ghi trong bảng `notifications` (V6), tạo từ sự kiện outbox bởi `NotificationService` (có tiêu đề tiếng Việt cho từng sự kiện), đọc qua `/api/v1/notifications` (danh sách, đánh dấu đã đọc, đánh dấu tất cả, đếm chưa đọc).
+  - Không tạo adapter mới (theo brief). Việc gửi email hoặc push sẽ làm theo mẫu 4.1 khi có yêu cầu.
 
 ---
 
