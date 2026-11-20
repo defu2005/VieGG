@@ -3,6 +3,8 @@ package com.rentgg.identity.api;
 import com.rentgg.config.RentGgProperties;
 import com.rentgg.identity.application.AuthService;
 import com.rentgg.identity.application.AuthorityService;
+import com.rentgg.identity.application.LoginBackoff;
+import com.rentgg.shared.error.ApiException;
 import com.rentgg.identity.application.UserView;
 import com.rentgg.shared.ratelimit.RateLimiter;
 import com.rentgg.shared.ratelimit.RateLimiter.Limit;
@@ -30,9 +32,11 @@ public class AuthController {
     private final RateLimiter rateLimiter;
     private final RentGgProperties props;
     private final AuthorityService authorities;
+    private final LoginBackoff backoff;
 
     public AuthController(AuthService auth, RateLimiter rateLimiter, RentGgProperties props,
-                          AuthorityService authorities) {
+                          AuthorityService authorities, LoginBackoff backoff) {
+        this.backoff = backoff;
         this.authorities = authorities;
         this.auth = auth;
         this.rateLimiter = rateLimiter;
@@ -53,7 +57,19 @@ public class AuthController {
     public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         rateLimiter.consume("login:" + http.getRemoteAddr() + ":" + req.email().trim().toLowerCase(),
                 Limit.perMinute(props.rateLimit().loginPerMinute()), Limit.perHour(props.rateLimit().loginPerHour()));
-        return TokenResponse.of(auth.login(req.email(), req.password(), req.totpCode()));
+        String key = http.getRemoteAddr() + ":" + req.email().trim().toLowerCase();
+        backoff.checkBeforePassword(key);
+        try {
+            var tokens = auth.login(req.email(), req.password(), req.totpCode());
+            backoff.reset(key);
+            return TokenResponse.of(tokens);
+        } catch (ApiException e) {
+            // Only a wrong password counts; MFA_* and USER_SUSPENDED neither count nor reset.
+            if ("INVALID_CREDENTIALS".equals(e.code())) {
+                backoff.recordWrongPassword(key);
+            }
+            throw e;
+        }
     }
 
     @PostMapping("/refresh")
