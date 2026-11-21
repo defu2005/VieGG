@@ -180,6 +180,97 @@ async function login(page, email, password) {
       });
       await context.close();
     }
+
+    // F5: người thuê nạp ví (cổng giả lập ở dev), đặt đơn và thanh toán bằng ví. Đơn phải rời "Chờ thanh toán".
+    // Context này được giữ mở để F6 dùng lại (mỗi vai chỉ đăng nhập một lần mỗi lần chạy).
+    const renterCtx = await newContext(browser, 'f5-renter-pays');
+    const renterPage = await renterCtx.newPage();
+    await check('F5 người thuê nạp ví và thanh toán đơn', async () => {
+      await login(renterPage, 'renter2@rentgg.dev', PASSWORD);
+      await renterPage.goto(`${BASE}/wallet`, { waitUntil: 'networkidle' });
+      await dismissTourIfShown(renterPage, 'f5-renter-wallet');
+      await renterPage.locator('#topup-amount').fill('500000');
+      await renterPage.getByRole('button', { name: /^Nạp / }).click();
+      await renterPage.getByRole('button', { name: 'Giả lập thanh toán thành công (dev)' }).first().click();
+      await renterPage.getByText(/Đã nạp .* vào ví \(dev\)\./).waitFor({ state: 'visible', timeout: 10000 });
+      await shot(renterPage, 'f5-renter-topped-up');
+
+      await renterPage.goto(`${BASE}/listings`, { waitUntil: 'networkidle' });
+      await dismissTourIfShown(renterPage, 'f5-renter-listings');
+      const listing = renterPage.locator('a[href^="/listings/"]').first();
+      await listing.waitFor({ state: 'visible', timeout: 10000 });
+      await listing.click();
+      await renterPage.waitForURL(/\/listings\//, { timeout: 10000 });
+      await renterPage.getByRole('button', { name: /Đặt và thanh toán/ }).click();
+      await renterPage.waitForURL(/\/orders\//, { timeout: 15000 });
+      await dismissTourIfShown(renterPage, 'f5-renter-order');
+      const orderUrl = renterPage.url();
+      const stillPending = renterPage.getByText('Chờ thanh toán', { exact: true });
+      if (NEGATIVE) {
+        // Kỳ vọng sai có chủ đích: đòi đơn vẫn "Chờ thanh toán" (đã thanh toán nên luồng phải đỏ).
+        await stillPending.first().waitFor({ state: 'visible', timeout: 5000 });
+      } else {
+        await renterPage.getByText('Chờ thanh toán', { exact: true }).first().waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
+        if (await stillPending.count()) throw new Error('đơn vẫn "Chờ thanh toán" sau khi thanh toán bằng ví');
+      }
+      await shot(renterPage, 'f5-renter-order-paid');
+      return `đơn ${orderUrl} không còn "Chờ thanh toán"`;
+    });
+
+    // F7: admin từ chối bài đăng đang chờ và ghi lý do; chủ account đăng nhập lại và thấy đúng lý do đó.
+    const rejectNote = `E2E từ chối ${Date.now()}`;
+    await check('F7 admin từ chối bài đăng và chủ thấy lý do', async () => {
+      const ctx = await newContext(browser, 'f7-admin-rejects');
+      const page = await ctx.newPage();
+      try {
+        await login(page, 'admin@rentgg.dev', PASSWORD);
+        await page.goto(`${BASE}/admin/listings`, { waitUntil: 'networkidle' });
+        await dismissTourIfShown(page, 'f7-admin');
+        const card = page.locator('div.card.stack').first();
+        await card.waitFor({ state: 'visible', timeout: 10000 });
+        await card.getByPlaceholder('Lý do từ chối').fill(NEGATIVE ? 'lý do khác' : rejectNote);
+        await card.getByRole('button', { name: 'Từ chối', exact: true }).click();
+        await page.getByText('Đã từ chối listing.').waitFor({ state: 'visible', timeout: 10000 });
+        await shot(page, 'f7-admin-rejected');
+      } finally {
+        await ctx.close();
+      }
+
+      const ownerCtx = await newContext(browser, 'f7-owner-sees-reason');
+      const ownerPage = await ownerCtx.newPage();
+      try {
+        await login(ownerPage, 'owner@rentgg.dev', PASSWORD);
+        await ownerPage.goto(`${BASE}/my-listings`, { waitUntil: 'networkidle' });
+        await dismissTourIfShown(ownerPage, 'f7-owner');
+        await ownerPage.getByText(`Lý do từ chối: ${rejectNote}`).first().waitFor({ state: 'visible', timeout: 10000 });
+        await shot(ownerPage, 'f7-owner-sees-reason');
+      } finally {
+        await ownerCtx.close();
+      }
+      return `admin từ chối với lý do "${rejectNote}"; chủ thấy lý do đó trong "Account cho thuê"`;
+    });
+
+    // F6 (chạy cuối): tua đồng hồ dev +1 ngày, giờ hiển thị phải đổi; rồi về giờ thật để không để lại độ lệch.
+    await check('F6 tua thời gian dev đổi giờ hiển thị rồi về giờ thật', async () => {
+      await renterPage.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      const pill = renterPage.locator('button.devtime-pill');
+      await pill.waitFor({ state: 'visible', timeout: 10000 });
+      const before = (await pill.innerText()).trim();
+      await pill.click();
+      const dialog = renterPage.getByRole('dialog', { name: 'Tua thời gian (dev)' });
+      await dialog.waitFor({ state: 'visible', timeout: 5000 });
+      await dialog.getByRole('button', { name: '+1 ngày', exact: true }).click();
+      await renterPage.locator('button.devtime-pill-shifted').waitFor({ state: 'visible', timeout: 10000 });
+      const after = (await renterPage.locator('button.devtime-pill').innerText()).trim();
+      if (!NEGATIVE && after === before) throw new Error(`giờ hiển thị không đổi sau khi tua +1 ngày ("${after}")`);
+      if (NEGATIVE) throw new Error(`kỳ vọng sai có chủ đích: giờ đã đổi thành "${after}"`);
+      await shot(renterPage, 'f6-time-shifted');
+      await renterPage.getByRole('button', { name: 'Về giờ thật' }).click();
+      await renterPage.locator('button.devtime-pill:not(.devtime-pill-shifted)').waitFor({ state: 'visible', timeout: 10000 });
+      await shot(renterPage, 'f6-time-reset');
+      return `🕒 từ "${before}" sang "${after}", rồi về giờ thật`;
+    });
+    await renterCtx.close();
   } finally {
     await browser.close();
   }
