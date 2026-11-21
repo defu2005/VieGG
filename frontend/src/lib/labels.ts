@@ -4,7 +4,7 @@
  * a readable form ("SOME_CODE" → "Some code") instead of the raw enum.
  */
 
-export type Tone = 'ok' | 'warn' | 'bad' | undefined;
+export type Tone = 'ok' | 'warn' | 'bad' | 'held' | undefined;
 
 export interface LabelDef {
   label: string;
@@ -77,7 +77,7 @@ export const GAME_RISK: LabelDict = {
 
 export const DEPOSIT_STATUS: LabelDict = {
   PENDING_PAYMENT: { label: 'Chờ thanh toán', tone: 'warn', hint: 'Cọc sẽ được giữ khi bạn thanh toán đơn.' },
-  HELD: { label: 'Đang giữ', tone: 'warn', hint: 'VieGG đang giữ cọc trong lúc thuê.' },
+  HELD: { label: 'Đang giữ', tone: 'held', hint: 'VieGG đang giữ cọc trong lúc thuê.' },
   POST_RENTAL_HOLD: { label: 'Giữ sau khi thuê', tone: 'warn', hint: 'Giữ thêm một thời gian ngắn để chủ account kiểm tra.' },
   DISPUTED: { label: 'Đang khiếu nại', tone: 'bad', hint: 'Đang có khiếu nại, cọc tạm giữ đến khi có kết quả.' },
   REFUND_PENDING: { label: 'Đang hoàn', tone: 'warn', hint: 'Đã duyệt hoàn, tiền đang chuyển về cho bạn.' },

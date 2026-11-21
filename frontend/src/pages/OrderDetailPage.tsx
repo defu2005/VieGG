@@ -214,7 +214,7 @@ export function OrderDetailPage() {
           )}
           {deposit && (
             <>
-              <dt>Tiền cọc</dt>
+              <dt>Trạng thái cọc</dt>
               <dd>
                 <StatusBadge status={deposit.status} dict={DEPOSIT_STATUS} />
               </dd>

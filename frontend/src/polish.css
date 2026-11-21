@@ -274,7 +274,8 @@ tbody tr:hover {
 
 .badge-ok,
 .badge-warn,
-.badge-bad {
+.badge-bad,
+.badge-held {
   border-color: transparent;
 }
 
