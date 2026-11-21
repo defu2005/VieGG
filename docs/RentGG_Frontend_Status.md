@@ -52,6 +52,8 @@ Lưu ý về nguồn tham khảo: trang zuhaowan.com là ứng dụng JavaScript
 | Chủ account | Nhập "thông tin nổi bật" (rank, server, số tướng, trang phục...) dạng tên: giá trị, hiện thành thẻ cho người thuê |
 | Độ bền | Phiên hết hạn không còn làm trống trang công khai: khi refresh token thất bại, request được thử lại không kèm token |
 
+**Ghi chú 2026-11-21 (PLANNED):** nghiên cứu lại giao diện cho đúng bản chất sàn trung gian thuê account. Ưu tiên tín hiệu tin cậy và an toàn (cọc, mã hóa, trạng thái bàn giao, khiếu nại nhìn thấy được ở mọi bước), không chỉ làm đẹp. Chưa bắt đầu; chưa có thiết kế được duyệt.
+
 ## 3. Chưa kiểm thử (đã code nhưng chưa chạy trên dữ liệu thật)
 
 - Mở khiếu nại và thêm bằng chứng: cần đơn ở trạng thái `IN_RENTAL` hoặc `ENDED`, chưa tạo được trong môi trường dev vì phụ thuộc giờ thuê thật.
