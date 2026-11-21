@@ -1,6 +1,8 @@
 package com.rentgg.audit.application;
 
 import com.rentgg.shared.web.PageResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +20,11 @@ public class AuditQueryService {
     private static final int MAX_SIZE = 100;
 
     private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
 
-    public AuditQueryService(JdbcTemplate jdbc) {
+    public AuditQueryService(JdbcTemplate jdbc, ObjectMapper mapper) {
         this.jdbc = jdbc;
+        this.mapper = mapper;
     }
 
     @Transactional(readOnly = true)
@@ -54,14 +58,26 @@ public class AuditQueryService {
                   from audit_logs""" + where + " order by created_at desc, id limit ? offset ?",
                 (rs, n) -> new Entry(rs.getObject("id", UUID.class), rs.getObject("actor_id", UUID.class),
                         rs.getString("actor_roles"), rs.getString("action"), rs.getString("entity_type"),
-                        rs.getObject("entity_id", UUID.class), rs.getString("before"), rs.getString("after"),
+                        rs.getObject("entity_id", UUID.class), json(rs.getString("before")), json(rs.getString("after")),
                         rs.getString("reason_code"), rs.getTimestamp("created_at").toInstant()),
                 pageArgs.toArray());
         return PageResponse.of(rows, p, s, total == null ? 0 : total);
     }
 
+    /** The stored jsonb as a JSON value (an object, not an escaped string). Null stays null. */
+    private JsonNode json(String stored) {
+        if (stored == null) {
+            return null;
+        }
+        try {
+            return mapper.readTree(stored);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("audit_logs contains invalid JSON", e);
+        }
+    }
+
     public record Filter(String entityType, UUID entityId, UUID actorId, String action) {}
 
     public record Entry(UUID id, UUID actorId, String actorRoles, String action, String entityType, UUID entityId,
-                        String before, String after, String reasonCode, Instant createdAt) {}
+                        JsonNode before, JsonNode after, String reasonCode, Instant createdAt) {}
 }
