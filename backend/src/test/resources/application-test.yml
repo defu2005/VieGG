@@ -41,7 +41,9 @@ spring:
     clean-disabled: false
   datasource:
     hikari:
-      maximum-pool-size: 30
+      # Each cached test context keeps its own pool; keep them small so CI's postgres max_connections (100) holds.
+      maximum-pool-size: 8
+      minimum-idle: 2
 
 logging:
   level:
