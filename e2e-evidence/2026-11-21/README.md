@@ -25,3 +25,17 @@ Chưa phủ (không tự động hóa trong lần này): thanh toán của ngư�
 
 - `e2e-run10/`: 5/5, exit 0. Sửa: tour được chờ tối đa 3 giây và được bỏ qua sau mỗi lần `goto` (F2 danh sách, F3 admin). Ảnh `f2-renter-orders.png` và `f3-admin-listings.png` đã kiểm tra là sạch; ảnh `*-tour-shown.png` là ảnh trước khi bỏ qua.
 - Lần chạy 8 và 9 được chụp trước khi sửa tour: kết quả chữ vẫn đúng nhưng ảnh F2 danh sách và F3 có thể bị tour che. Nếu cần ảnh sạch, dùng `e2e-run10/`.
+
+## Lần chạy 11 và âm tính 6 (DB mới, script `685c0ca` trên `claude/e2e-web-evidence`)
+
+Đã thêm F5 (thanh toán ví), F7 (admin từ chối bài đăng, chủ thấy lý do) và F6 (tua 🕒 +1 ngày, rồi về giờ thật). Mỗi lần chạy trên DB `rentgg_e2e` mới, backend dev khởi động lại.
+
+| Thư mục | Kết quả | Exit | Ghi chú |
+| --- | --- | --- | --- |
+| `e2e-run11/` | 8/8 | 0 | Lần sạch. F6 ghi nhận giờ đổi từ "00:54 22/11/26" sang "00:54 23/11/26 · +23 giờ 59 phút", rồi về giờ thật |
+| `e2e-negative6/` | 3/8 | 1 | Âm tính `--expect-fail`. Đỏ đúng chỗ: F2 xác minh, F3 tiêu đề, F5 kỳ vọng "Chờ thanh toán" còn, F7 lý do khác, F6 kỳ vọng sai có chủ đích |
+
+Lưu ý:
+- `e2e-negative5/` không được dùng làm bằng chứng. Lần đó bị dừng giữa chừng, nên F5–F7 báo `Target page … has been closed`, không phải do kỳ vọng sai. Thư mục không được đưa vào nhánh này.
+- F6 trong lần âm tính luôn đỏ có chủ đích, và để đồng hồ dev lệch. Lần chạy kế tiếp xoá `backend/target/dev-clock-*.properties` trước khi chạy.
+- Ảnh và video nằm trong từng thư mục run; các ảnh F5–F7 chưa kiểm tra bằng mắt. Chỉ kiểm tra qua `results.json` và assert chữ.

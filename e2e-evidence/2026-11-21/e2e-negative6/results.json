@@ -1,0 +1,50 @@
+[
+  {
+    "name": "F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login",
+    "ok": true,
+    "detail": "lỗi hiển thị: \"Email hoặc mật khẩu không đúng.\"",
+    "ms": 2923
+  },
+  {
+    "name": "F4 chủ duyệt đơn \"Chờ chủ account duyệt\"",
+    "ok": true,
+    "detail": "đơn /orders/fc1c353a-9071-4ccc-a896-63dd5a8afa0d đã duyệt; khu \"Duyệt đơn\" đã biến mất",
+    "ms": 4741
+  },
+  {
+    "name": "F2 người thuê thấy đơn và danh sách có dữ liệu",
+    "ok": true,
+    "detail": "danh sách có 4 dòng đơn",
+    "ms": 3820
+  },
+  {
+    "name": "F2 người thuê xác minh đơn đã được chủ duyệt",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 5000ms exceeded.",
+    "ms": 8775
+  },
+  {
+    "name": "F3 admin mở \"Kiểm duyệt bài đăng\"",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 10000ms exceeded.",
+    "ms": 13490
+  },
+  {
+    "name": "F5 người thuê nạp ví và thanh toán đơn",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 5000ms exceeded.",
+    "ms": 16336
+  },
+  {
+    "name": "F7 admin từ chối bài đăng và chủ thấy lý do",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 10000ms exceeded.",
+    "ms": 19552
+  },
+  {
+    "name": "F6 tua thời gian dev đổi giờ hiển thị rồi về giờ thật",
+    "ok": false,
+    "detail": "kỳ vọng sai có chủ đích: giờ đã đổi thành \"🕒 04:49 23/11/26 · +23 giờ 59 phút\"",
+    "ms": 1840
+  }
+]
