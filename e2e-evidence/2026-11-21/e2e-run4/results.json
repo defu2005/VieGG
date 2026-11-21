@@ -1,0 +1,21 @@
+[
+  {
+    "name": "F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login",
+    "ok": true,
+    "detail": "lỗi hiển thị: \"Email hoặc mật khẩu không đúng.\"",
+    "ms": 2251,
+    "video": "/tmp/claude-0/-home-user-VieGG/8f0fb1ba-634e-5049-9b57-5459eefafede/scratchpad/e2e-run4/video/f1-wrong-password/page@dc55a181a079601ef38720c13fbbc2e4.webm"
+  },
+  {
+    "name": "F2 người thuê đăng nhập và mở \"Đơn của tôi\"",
+    "ok": true,
+    "detail": "tiêu đề \"Đơn của tôi\" hiển thị; tour chào mừng: có (đã bỏ qua, ảnh f2-renter-tour-shown); nút 🕒: có",
+    "ms": 3600
+  },
+  {
+    "name": "F3 admin mở \"Kiểm duyệt bài đăng\"",
+    "ok": true,
+    "detail": "tiêu đề \"Kiểm duyệt bài đăng\" hiển thị; tour chào mừng: có (đã bỏ qua)",
+    "ms": 3555
+  }
+]
