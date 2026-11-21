@@ -126,8 +126,8 @@ UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = '<user-id>' AND rev
 - Dev giữ `db` như cũ.
 - Dữ liệu cũ còn trong DB tự chuyển sang R2 khi backend khởi động (`RENTGG_MEDIA_BACKFILL=true`). Xong thì chạy `VACUUM FULL listing_images, dispute_attachments, support_attachments;` để trả lại dung lượng đĩa.
 
-### B3. Kiểm thử trên máy dev (lỗi thời, chưa xác minh lại)
-> Ghi chú 2026-11-21: mục này ghi ngày kiểm thử cũ và không có bằng chứng hiện tại. Coi như chưa kiểm chứng; cần chạy lại trước khi dựa vào.
+### B3. Kiểm thử trên máy dev (lỗi thời, chưa chạy lại)
+> Ghi chú 2026-11-21: mô tả lần chạy cũ (29/10/2026), chưa chạy lại. Chạy lại theo [Dev Guide §5](RentGG_Dev_Guide.md) trước khi dựa vào kết quả này.
 
-Mô tả lần chạy trước (không còn đúng):
+Lần chạy cũ (29/10/2026):
 Chạy nguyên stack với tên miền `localhost` và S3Mock thay R2: HTTPS, web, chặn `/actuator`, đăng ký/đăng nhập, `make-admin.sh`, upload/tải ảnh qua R2, chuyển dữ liệu cũ, sao lưu và khôi phục (cả trường hợp file sai) đều chạy đúng. **Chưa** thử với R2 thật, Let's Encrypt thật và Cloudflare proxy thật: làm ở bước A4.
