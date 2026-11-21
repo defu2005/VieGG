@@ -44,7 +44,7 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 
 - `ledger_transactions`, `ledger_postings`, `audit_logs` chặn UPDATE, DELETE, TRUNCATE (`V7__append_only_triggers.sql`).
 - Khi commit, tổng posting của mỗi transaction phải bằng 0 và có ít nhất 2 posting (constraint trigger trì hoãn đến commit).
-- Dòng sổ cũ không sửa được ở tầng database. Cách sửa sai chưa được ghi lại: UNKNOWN.
+- Dòng sổ cũ không sửa được ở tầng database. Cách sửa sai: điều chỉnh bằng `LEDGER_ADJUSTMENT` qua duyệt kép (`approval/application/ApprovalService.java`, nhánh `LEDGER_ADJUSTMENT`). Kiểm tra 2026-11-21.
 
 ### D-08: Ràng buộc đặt lịch ở tầng database (ACTIVE)
 
@@ -62,7 +62,7 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 
 - Mã hóa `AES/GCM/NoPadding` (`shared/crypto/CredentialCipher.java`). Khóa đọc từ `RENTGG_CREDENTIAL_KEYS`; khóa dùng để mã hóa mới là `RENTGG_CREDENTIAL_ACTIVE_KEY_ID`.
 - Bảng `credential_versions` lưu các phiên bản; phiên bản đang dùng có `status = 'ACTIVE'`.
-- Tạo và xoay vòng credential được ghi audit. Ghi audit khi xem credential: UNKNOWN.
+- Tạo và xoay vòng credential được ghi audit. Khi xem credential để bàn giao, ghi `CREDENTIAL_VIEWED`; từ chối và vượt giới hạn ghi `CREDENTIAL_VIEW_DENIED` và `CREDENTIAL_VIEW_RATE_LIMITED` (`order/application/HandoverService.java`). Kiểm tra 2026-11-21.
 
 ### D-11: Media mặc định lưu trong database, S3 bật ở prod (ACTIVE)
 
@@ -145,3 +145,15 @@ Các điểm dưới đây có trong code nhưng không có (hoặc khác) trong
 - Ai duy trì tài liệu này và khi nào cập nhật (đề xuất: cập nhật cùng PR đổi module, endpoint, schema, hoặc lệnh chạy).
 - Có đưa `legal` và `settings` vào bảng module của System Design hay không (D-18).
 - Quy tắc migration: giữ hay cập nhật (D-09).
+
+### Danh sách tính năng đề xuất (PLANNED, chưa được duyệt)
+
+Ghi ngày 2026-11-21. Mỗi mục đã kiểm tra bằng code hoặc tài liệu như ghi bên dưới. Chưa làm mục nào; chờ người quản lý dự án chọn.
+
+1. **Email và push cho sự kiện có hạn chót** (hạn thanh toán, bắt đầu, kết thúc thuê, gia hạn, hạn khiếu nại, rotation quá hạn). Bằng chứng: không có dependency email hay push (D-16); outbox và 41 mẫu thông báo đã có. Làm adapter theo kiểu mock trước, như Dev Guide §4.3.
+2. **Hoàn tiền về phương thức thanh toán gốc qua PSP.** Bằng chứng: `PaymentService.processRefund` luôn cộng vào ví; Dev Guide §4.1 mục hoàn tiền còn mở. Phần `[M]` làm được bằng contract test, không cần khóa sandbox.
+3. **Xác minh bổ sung (step-up) khi rút tiền.** Bằng chứng: `wallet/` không có TOTP hay MFA; TOTP hiện chỉ bắt buộc cho nhân viên (Dev Guide §2.4).
+4. **Đánh giá và điểm uy tín hai chiều.** Bằng chứng: không có module rating hay review; UC-14 là P1 trong use case; xem `RentGG_Frontend_Status.md` mục 4 (8b).
+5. **Lưu trạng thái "đã xem tour" phía server.** Bằng chứng: `frontend/src/components/Onboarding.tsx` lưu trong localStorage theo `userId`, nên tour hiện lại trên mỗi thiết bị. Việc nhỏ.
+
+Đã loại khỏi danh sách: điều chỉnh sổ cái (đã có `LEDGER_ADJUSTMENT`), audit xem credential (đã có `CREDENTIAL_VIEWED`), gói bảo vệ account và đồng bộ đa kênh (phụ thuộc đối tác, Phase 2).
