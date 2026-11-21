@@ -3,6 +3,8 @@ package com.rentgg.payment.infrastructure.psp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rentgg.payment.application.PaymentGateway.ProviderException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -35,7 +37,7 @@ public class PspHttp {
                     .exchange((req, res) -> new String(res.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             return read(raw);
         } catch (RestClientException e) {
-            throw new ProviderException("Không gọi được cổng thanh toán: " + e.getMessage(), e);
+            throw transportFailure(e);
         }
     }
 
@@ -47,7 +49,7 @@ public class PspHttp {
                     .exchange((req, res) -> new String(res.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             return read(raw);
         } catch (RestClientException e) {
-            throw new ProviderException("Không gọi được cổng thanh toán: " + e.getMessage(), e);
+            throw transportFailure(e);
         }
     }
 
@@ -57,8 +59,17 @@ public class PspHttp {
                     .exchange((req, res) -> new String(res.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             return read(raw);
         } catch (RestClientException e) {
-            throw new ProviderException("Không gọi được cổng thanh toán: " + e.getMessage(), e);
+            throw transportFailure(e);
         }
+    }
+
+    /** Message the client sees for a transport failure. The endpoint and the I/O detail stay in the server log. */
+    static final String UNAVAILABLE = "Cổng thanh toán tạm thời không phản hồi, thử lại sau.";
+    private static final Logger log = LoggerFactory.getLogger(PspHttp.class);
+
+    private static ProviderException transportFailure(RestClientException e) {
+        log.warn("Lỗi truyền tải tới cổng thanh toán: {}", e.getMessage());
+        return new ProviderException(UNAVAILABLE, e);
     }
 
     public JsonNode read(byte[] raw) {
