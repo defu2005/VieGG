@@ -4,6 +4,7 @@ import com.rentgg.listing.application.ListingAppealService;
 import com.rentgg.listing.application.ListingAppealService.Appeal;
 import com.rentgg.listing.domain.ListingStatus;
 import com.rentgg.support.IntegrationTest;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -95,7 +96,23 @@ class ListingAppealIT extends IntegrationTest {
 
         List<Map<String, Object>> rows = listings.decisionsOf(s.ownerId(), s.listingId());
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0)).containsEntry("kind", "SUSPENDED").containsEntry("appeal_status", "PENDING");
+        assertThat(rows.get(0)).containsEntry("kind", "SUSPENDED").containsEntry("appealStatus", "PENDING");
         assertApi(() -> listings.decisionsOf(user(), s.listingId()), "NOT_FOUND");
+    }
+
+    /** The decision is a required field: a request without it is refused, never read as a rejection. */
+    @Test
+    void reviewWithoutAnAcceptFlagIsRefused() throws Exception {
+        Setup s = standardListing();
+        UUID admin = user("ADMIN");
+        listings.suspend(admin, s.listingId(), "POLICY");
+        UUID decision = decisionOf(s.listingId());
+        Appeal a = appeals.file(s.ownerId(), decision, REASON);
+
+        mvc.perform(post("/api/v1/support/listing-appeals/" + a.id() + "/review")
+                        .header("Authorization", bearer(admin))
+                        .contentType("application/json").content("{\"note\":\"thiếu cờ accept\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        assertThat(appeals.forDecision(decision)).extracting(Appeal::status).containsExactly("PENDING");
     }
 }

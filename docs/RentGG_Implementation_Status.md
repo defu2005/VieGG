@@ -11,7 +11,7 @@
 | Hạng mục | Trạng thái |
 |---|---|
 | Backend MVP (Java 21, Spring Boot 3.3.5, PostgreSQL 16) | **Xong.** Biên dịch sạch, chạy được với profile `dev` |
-| Schema DB (36 migration Flyway, V1–V36) | **Xong** theo §5; các bản sau V7 bổ sung RBAC, ảnh listing, gia hạn đơn, helpdesk (xem 2.2) |
+| Schema DB (37 migration Flyway, V1–V37) | **Xong** theo §5; các bản sau V7 bổ sung RBAC, ảnh listing, gia hạn đơn, helpdesk (xem 2.2) |
 | Use Case P0 | **Đủ các luồng chính**. Một số chi tiết phụ còn thiếu (mục 4) |
 | Kiểm thử | Khoảng 30 file test (tích hợp, unit, kiến trúc, phân quyền), vẫn phủ các kịch bản bắt buộc T1–T18 (§18.2). **Số liệu "31/31" của báo cáo cũ đã lỗi thời; cần chạy lại `mvn test` để có kết quả mới** |
 | Đóng gói | Có Dockerfile backend và service `app` trong docker-compose. **Chưa có** Dockerfile/service cho frontend. CI backend và web đã có (2026-11-21). Máy dev dùng PostgreSQL portable thay Docker |
@@ -57,9 +57,10 @@
 | V33 | `dispute_appeals`: kháng nghị một lần cho mỗi chủ trên mỗi khiếu nại |
 | V34 | `legal_notices`: hồ sơ thông báo pháp lý, có hạn phản hồi 30 ngày |
 | V35 | `disputes.deadline_overdue_at` và chỉ mục khiếu nại quá hạn |
-| V36 | `listing_moderation_decisions` (ghi mỗi từ chối và đình chỉ), `listing_appeals` (một lần cho mỗi chủ trên mỗi quyết định), quyền `listing:appeal_review` cho ADMIN |
+| V36 | `listing_moderation_decisions` (ghi mỗi từ chối và đình chỉ), `listing_appeals` (một lần cho mỗi chủ trên mỗi quyết định), quyền `listing:appeal_review` cho ADMIN; `dispute_appeals` có trạng thái ACCEPTED/DISMISSED và cột xét |
+| V37 | `legal_notices`: `reminded_at`, `overdue_at`, `status_changed_at` và chỉ mục hồ sơ đang mở theo hạn |
 
-Danh sách đầy đủ: `backend/src/main/resources/db/migration`. Không sửa V1–V35.
+Danh sách đầy đủ: `backend/src/main/resources/db/migration`. Không sửa V1–V30.
 
 ### 2.3. Độ phủ Use Case P0
 
@@ -78,7 +79,7 @@ Danh sách đầy đủ: `backend/src/main/resources/db/migration`. Không sửa
 | UC-11/27 | Khiếu nại thiệt hại, khấu trừ cọc | Xong | `OWNER_DAMAGE` trước `hold_until`. Khấu trừ tối đa bằng cọc của chính đơn đó |
 | UC-15/36/41 | Hold doanh thu, rút tiền | Xong | Hold 72h (168h nếu seller rủi ro cao). Rút tiền khóa hàng `FOR UPDATE`. Finance đánh dấu chi thủ công |
 | UC-17/33/40 | Hủy đơn | Xong | Renter hủy đúng hạn được hoàn 100%, hủy muộn hoàn 50%. Owner hủy hoàn 100% kèm tín hiệu `OWNER_LATE_CANCEL`. Cọc luôn hoàn ngay |
-| UC-20 | Thông báo nhà phát hành | Một phần | Có đổi `tos_status` và đình chỉ listing. Có tiếp nhận và lưu hồ sơ thông báo pháp lý, có hạn phản hồi (`POST /api/v1/support/legal-notices`). Chưa có chuyển trạng thái và nhắc hạn |
+| UC-20 | Thông báo nhà phát hành | Một phần | Có đổi `tos_status` và đình chỉ listing. Có tiếp nhận và lưu hồ sơ thông báo pháp lý, có hạn phản hồi 30 ngày (`POST /api/v1/support/legal-notices`). Có chuyển trạng thái OPEN → RESPONDED → CLOSED (`POST .../{id}/transition`, ghi audit) và job nhắc một lần trước 3 ngày, đánh dấu quá hạn một lần (V37). Hồ sơ không tự xử lý; thời hạn 30 ngày cần pháp lý xác nhận |
 | UC-21 | Người chưa thành niên | Xong (MVP) | Chặn dưới 18 khi đăng ký và khi giao dịch, theo `min_age` của game |
 | UC-22 | Hỗ trợ, audit | Một phần | Có audit, tra cứu đơn và dispute cho Support. Có API tra cứu audit log (`GET /api/v1/admin/audit`). Chưa có màn hình |
 | UC-23 | Cấu hình game | Xong | `POST/PUT /admin/games`. Thay đổi chỉ áp dụng cho đơn mới |
@@ -150,7 +151,7 @@ TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test ./mvnw test
 | 10 | ~~Cảnh báo khi outbox kẹt hoặc refund lỗi quá số lần~~ **Một phần** | Trung bình | Có file rule `deploy/monitoring/rentgg-alerts.yml` (3 cảnh báo; `promtool check rules` đạt). Chưa nối vào Prometheus hay Alertmanager của triển khai |
 | 11 | ~~Endpoint quản trị còn thiếu~~ **Đã làm** | Trung bình | Hàng chờ `verify-recovery` (có sẵn), danh sách người dùng (có sẵn), tra cứu audit `GET /api/v1/admin/audit` (mới, quyền `audit:read`). Chưa có giao diện |
 | 12 | ~~Kháng nghị quyết định kiểm duyệt và dispute (UC-05, UC-13)~~ **Một phần** | Trung bình | Đã có kháng nghị khiếu nại của chủ đơn: một lần cho mỗi chủ trên mỗi khiếu nại, trong 7 ngày (V33). Kháng nghị kiểm duyệt listing (UC-05) và xét kháng nghị đã có (V36). Xét kháng nghị dispute ghi kết quả và phát sự kiện `DisputeAppealAccepted`; việc đảo tiền của quyết định dispute còn mở |
-| 13 | ~~Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20)~~ **Một phần** | Trung bình | Đã có tiếp nhận và lưu hồ sơ, hạn phản hồi 30 ngày (V34; con số này là lựa chọn của dự án, cần pháp lý xác nhận). Chưa có chuyển trạng thái và nhắc hạn |
+| 13 | ~~Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20)~~ **Một phần** | Trung bình | Đã có tiếp nhận và lưu hồ sơ, hạn phản hồi 30 ngày (V34; con số này là lựa chọn của dự án, cần pháp lý xác nhận). Chuyển trạng thái và nhắc hạn đã có (V37): OPEN → RESPONDED → CLOSED có audit, nhắc một lần, đánh dấu quá hạn một lần |
 | 14 | ~~Hạn phân xử dispute (`deadline_at`)~~ **Đã làm** | Thấp | Job đánh dấu khiếu nại `OPEN` quá `deadline_at`, một lần (V35), ghi outbox. Chưa có thông báo nhắc cho người dùng |
 | 15 | ~~Giới hạn body 1 MB (§12.10)~~ **Đã làm** | Thấp | `JsonBodyLimitFilter`: body JSON trên 1 MB trả 413 trước controller. Multipart không bị giới hạn này |
 | 16 | ~~Chuẩn hóa thông báo (notification)~~ **Đã làm** | Thấp | 41 sự kiện có tiêu đề và nội dung riêng. Nội dung là câu tĩnh, chưa có biến theo đơn |
@@ -207,7 +208,7 @@ Các mục dưới đây chưa có trong code. Không phải việc bắt buộc
 | Quan sát hệ thống | Còn thiếu `rentgg_orders_transition_total` đầy đủ, chưa có tracing (OpenTelemetry), file rule alert chưa nối Alertmanager | Trước production (mục 4.1 #8, #10) |
 | Xác thực hai lớp cho staff | Chưa có MFA (TOTP) cho SUPPORT, ADMIN, FINANCE | Trước khi cấp nhiều tài khoản staff |
 | Uy tín và đánh giá chủ account | Chỉ có `abuse_signals`, chưa có điểm, đánh giá, số lượt thuê (UC-14) | Trước khi mở rộng số chủ account |
-| Kháng nghị và hồ sơ pháp lý | Có kháng nghị khiếu nại (V33) và tiếp nhận hồ sơ UC-20 (V34). Kháng nghị kiểm duyệt listing (UC-05, V36) đã có; chưa chuyển trạng thái hồ sơ UC-20 | UC-20 cần trước khi có tranh chấp với nhà phát hành |
+| Kháng nghị và hồ sơ pháp lý | Có kháng nghị khiếu nại (V33) và tiếp nhận hồ sơ UC-20 (V34). Kháng nghị kiểm duyệt listing (UC-05, V36) đã có; chuyển trạng thái và nhắc hạn UC-20 đã có (V37) | UC-20 cần trước khi có tranh chấp với nhà phát hành |
 | Thông báo thời gian thực | Chuông và số chưa đọc phải tải lại trang | Khi có nhiều người dùng: SSE hoặc WebSocket |
 | Đa PSP và đối soát tự động | Có adapter nhưng chưa chọn/cấu hình; đối soát chỉ chạy bằng endpoint khi cần | Khi chạy thật nhiều kênh thu tiền: chọn PSP theo game, job đối soát định kỳ |
 | Tính năng thương mại | Chat, coupon, shop/tier (UC-16, UC-31, UC-32) | Theo lộ trình Phase 1 (§19.1) |

@@ -328,7 +328,7 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
   - tình trạng Docker, ảo hóa Android;
   - trạng thái các mục §4.1 sau khi làm.
 - **Xong khi:** mỗi tài liệu có ngày cập nhật mới và không còn mục nào mâu thuẫn với code.
-- **Đã đạt (2026-11-21):** ba file có ngày cập nhật, mục §4.1 đã đối chiếu với PR, số migration là 35 (V1–V35), CI có cho backend, web và iOS. Vẫn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
+- **Đã đạt (2026-11-21):** ba file có ngày cập nhật, mục §4.1 đã đối chiếu với PR, số migration là 35 (V1–V35) vào thời điểm kiểm tra; hiện tại là 37 (V1–V37), xem `RentGG_Implementation_Status.md`, CI có cho backend, web và iOS. Vẫn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 - **Kiểm thử:** đọc lại; đối chiếu với `git log`.
 
 ---
