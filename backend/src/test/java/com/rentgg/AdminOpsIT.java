@@ -53,6 +53,11 @@ class AdminOpsIT extends IntegrationTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("RECOVERY_VERIFIED")))
                 .andReturn().getResponse().getContentAsString();
         assertThat(body).contains("\"entityType\":\"GameAccount\"").doesNotContain("\"ip\"", "\"userAgent\"");
+        // after is a JSON object, not an escaped string.
+        assertThat(body).contains("\"after\":{").doesNotContain("\"after\":\"{");
+        // after is an object, not an escaped string.
+        assertThat(body).containsPattern("\"after\":\\{");
+        assertThat(body).doesNotContain("\"after\":\"{");
     }
 
     @Test
