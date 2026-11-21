@@ -45,7 +45,8 @@ async function check(name, fn) {
 // Tour chào mừng hiện ở lần đăng nhập đầu của người dùng mới; nó che trang nên phải chụp rồi bỏ qua.
 async function dismissTourIfShown(page, name) {
   const skip = page.getByRole('button', { name: 'Bỏ qua' });
-  if (await skip.isVisible({ timeout: 2000 }).catch(() => false)) {
+  // Tour có thể render trễ sau khi trang tải xong, nên chờ tối đa 3 giây thay vì kiểm tra tức thời.
+  if (await skip.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
     await shot(page, `${name}-tour-shown`);
     await skip.click();
     await skip.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
@@ -129,9 +130,9 @@ async function login(page, email, password) {
       const page = await context.newPage();
       await check('F2 người thuê thấy đơn và danh sách có dữ liệu', async () => {
         await login(page, 'renter@rentgg.dev', PASSWORD);
-        await dismissTourIfShown(page, 'f2-renter');
         await page.goto(`${BASE}/orders`, { waitUntil: 'networkidle' });
         await page.locator('h1', { hasText: 'Đơn của tôi' }).waitFor({ state: 'visible', timeout: 10000 });
+        await dismissTourIfShown(page, 'f2-renter-list');
         const rows = await page.locator('table tbody tr').count();
         if (rows < 1 && !NEGATIVE) throw new Error('danh sách đơn của người thuê không có dòng nào');
         await shot(page, 'f2-renter-orders');
@@ -165,8 +166,8 @@ async function login(page, email, password) {
       const page = await context.newPage();
       await check('F3 admin mở "Kiểm duyệt bài đăng"', async () => {
         await login(page, 'admin@rentgg.dev', PASSWORD);
-        await dismissTourIfShown(page, 'f3-admin');
         await page.goto(`${BASE}/admin/listings`, { waitUntil: 'networkidle' });
+        await dismissTourIfShown(page, 'f3-admin');
         const expectedTitle = NEGATIVE ? 'Tiêu đề không có thật' : 'Kiểm duyệt bài đăng';
         await page.locator('h1', { hasText: expectedTitle }).waitFor({ state: 'visible', timeout: 10000 });
         // Mỗi bài đăng là một thẻ div.card.stack (khu xác minh account là section, không tính).
