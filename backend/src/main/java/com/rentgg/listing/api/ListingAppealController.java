@@ -6,6 +6,7 @@ import com.rentgg.listing.application.ListingService;
 import com.rentgg.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class ListingAppealController {
 
     public record AppealRequest(@NotBlank @Size(max = 1000) String reason) {}
 
-    public record ReviewRequest(boolean accept, @Size(max = 1000) String note) {}
+    public record ReviewRequest(@NotNull Boolean accept, @Size(max = 1000) String note) {}
 
     @GetMapping("/listings/{id}/decisions")
     @PreAuthorize("hasAuthority('listing:manage_own')")
@@ -52,6 +53,6 @@ public class ListingAppealController {
     @PostMapping("/support/listing-appeals/{id}/review")
     @PreAuthorize("hasAuthority('listing:appeal_review')")
     public Appeal review(@PathVariable UUID id, @Valid @RequestBody ReviewRequest req) {
-        return appeals.review(CurrentUser.id(), id, req.accept(), req.note());
+        return appeals.review(CurrentUser.id(), id, req.accept().booleanValue(), req.note());
     }
 }

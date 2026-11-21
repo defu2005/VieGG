@@ -421,7 +421,7 @@ public class ListingService {
             throw ApiException.notFound("Listing");
         }
         return jdbc.queryForList("""
-                select d.id, d.kind, d.note, d.decided_at, a.id as appeal_id, a.status as appeal_status
+                select d.id, d.kind, d.note, d.decided_at as \"decidedAt\", a.id as \"appealId\", a.status as \"appealStatus\"
                   from listing_moderation_decisions d
                   left join listing_appeals a on a.decision_id = d.id and a.appellant_id = :caller
                  where d.listing_id = :listing
