@@ -1,22 +1,28 @@
 :root {
-  --bg: #f6f7fb;
+  --bg: #f6f6f8;
   --surface: #ffffff;
-  --text: #1b1f2a;
-  --muted: #6b7280;
-  --border: #e3e6ee;
-  --primary: #4f46e5;
+  --text: #222222;
+  --muted: #6b6b74;
+  --border: #e4e4ea;
+  --primary: #b84a00;
   --primary-text: #ffffff;
-  --danger: #dc2626;
-  --success: #15803d;
-  --warning: #b45309;
+  --brand: #ff6a00;
+  --brand-soft: #fff1e6;
+  --danger: #d93025;
+  --success: #15723f;
+  --warning: #8a5a00;
   --radius: 14px;
-  --accent: #ec4899;
-  --surface-2: #f1f2f8;
+  --accent: #ff4d2e;
+  --held: #0f766e;
+  --pending: #1f5fc7;
+  --released: #15723f;
+  --disputed: #d93025;
+  --surface-2: #efeff3;
   --ring: color-mix(in srgb, var(--primary) 35%, transparent);
   --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05), 0 1px 3px rgba(17, 24, 39, 0.04);
   --shadow: 0 6px 18px -6px rgba(17, 24, 39, 0.12), 0 2px 6px rgba(17, 24, 39, 0.05);
-  --shadow-lg: 0 18px 40px -12px rgba(79, 70, 229, 0.28);
-  --gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+  --shadow-lg: 0 18px 40px -12px rgba(184, 74, 0, 0.26);
+  --gradient: linear-gradient(135deg, #b84a00 0%, #c94e00 100%);
   color-scheme: light dark;
   font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.55;
@@ -25,38 +31,54 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0f1117;
-    --surface: #181b25;
-    --text: #e6e8ee;
-    --muted: #9aa3b2;
-    --border: #2a2f3d;
-    --primary: #818cf8;
-    --primary-text: #0f1117;
-    --danger: #f87171;
+    --bg: #141414;
+    --surface: #1e1e21;
+    --text: #f2f2f4;
+    --muted: #a3a3ad;
+    --border: #2e2e34;
+    --primary: #ff8a3d;
+    --primary-text: #141414;
+    --brand: #ff6a00;
+    --brand-soft: #3a2416;
+    --danger: #ff6b5e;
     --success: #4ade80;
     --warning: #fbbf24;
-    --surface-2: #1f2330;
+    --accent: #ff7a5c;
+    --held: #2dd4bf;
+    --pending: #7ca7ff;
+    --released: #4ade80;
+    --disputed: #ff6b5e;
+    --surface-2: #26262b;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 18px 40px -12px rgba(129, 140, 248, 0.35);
+    --shadow-lg: 0 18px 40px -12px rgba(255, 106, 0, 0.3);
+    --gradient: linear-gradient(135deg, #ff6a00 0%, #ff4d2e 100%);
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #0f1117;
-  --surface: #181b25;
-  --text: #e6e8ee;
-  --muted: #9aa3b2;
-  --border: #2a2f3d;
-  --primary: #818cf8;
-  --primary-text: #0f1117;
-  --danger: #f87171;
+  --bg: #141414;
+  --surface: #1e1e21;
+  --text: #f2f2f4;
+  --muted: #a3a3ad;
+  --border: #2e2e34;
+  --primary: #ff8a3d;
+  --primary-text: #141414;
+  --brand: #ff6a00;
+  --brand-soft: #3a2416;
+  --danger: #ff6b5e;
   --success: #4ade80;
   --warning: #fbbf24;
-  --surface-2: #1f2330;
+  --accent: #ff7a5c;
+  --held: #2dd4bf;
+  --pending: #7ca7ff;
+  --released: #4ade80;
+  --disputed: #ff6b5e;
+  --surface-2: #26262b;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 18px 40px -12px rgba(129, 140, 248, 0.35);
+  --shadow-lg: 0 18px 40px -12px rgba(255, 106, 0, 0.3);
+  --gradient: linear-gradient(135deg, #ff6a00 0%, #ff4d2e 100%);
 }
 
 * {
@@ -391,7 +413,7 @@ h2 {
 .hero {
   padding: 1.75rem 1.25rem;
   border-radius: calc(var(--radius) + 4px);
-  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 55%, #ec4899));
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 80%, var(--brand)));
   color: var(--primary-text);
 }
 
