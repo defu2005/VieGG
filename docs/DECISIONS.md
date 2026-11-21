@@ -140,6 +140,15 @@ Các điểm dưới đây có trong code nhưng không có (hoặc khác) trong
 
 - Job `retryFailedRefunds` thử lại các hoàn tiền lỗi (`jobs/Jobs.java`). Chưa kiểm được chính sách backoff trong code: UNKNOWN.
 
+### D-24: Giao diện web: nền tối mặc định, cam chỉ cho hành động và giá (ACTIVE)
+
+- **Quyết định:** web dùng nền tối làm mặc định (`:root`); chế độ sáng chỉ bật khi có `data-theme="light"`. Hiện chưa có nút chuyển, nên người dùng không tự chọn được và không theo hệ điều hành.
+- **Cam (`--primary` / `--price`):** chỉ dùng cho nút hành động chính, liên kết và giá. Trạng thái (giữ, chờ, hoàn tất, tranh chấp, hủy) không dùng cam. Chữ trên nút cam dùng màu tối `#222222` (5.5:1).
+- **Ứng dụng di động:** giữ nền sáng, chỉ đồng bộ màu cam nhấn. Web và app chưa khớp hoàn toàn về nền.
+- **Kiểm tra:** tương phản WCAG (chữ chính 17.3:1, chữ mờ 6.8:1, link cam 6.7:1, đỏ cảnh báo 5.9:1); không tràn ngang ở 1280 và 390 trên 7 trang; E2E `web-evidence` 8/8.
+- **Chưa làm:** nút chuyển sáng/tối; ảnh placeholder listing vẫn đơn giản; tiêu đề đơn hiện đoạn UUID; tour chào mừng chưa lưu trạng thái phía server.
+- **Liên quan:** nhánh `claude/vigilant-heisenberg-xp4z0i` (commit `c442f81` và các commit sau).
+
 ## Chưa quyết định
 
 - Ai duy trì tài liệu này và khi nào cập nhật (đề xuất: cập nhật cùng PR đổi module, endpoint, schema, hoặc lệnh chạy).
