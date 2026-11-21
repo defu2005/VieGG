@@ -2,8 +2,10 @@ package com.rentgg.dispute.application;
 
 import com.rentgg.dispute.domain.Dispute;
 import com.rentgg.dispute.domain.DisputeStatus;
+import com.rentgg.audit.application.AuditService;
 import com.rentgg.dispute.infrastructure.DisputeRepository;
 import com.rentgg.shared.error.ApiException;
+import com.rentgg.shared.outbox.OutboxService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -29,11 +32,16 @@ public class DisputeAppealService {
     private final DisputeRepository disputes;
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    private final AuditService audit;
+    private final OutboxService outbox;
 
-    public DisputeAppealService(DisputeRepository disputes, JdbcTemplate jdbc, Clock clock) {
+    public DisputeAppealService(DisputeRepository disputes, JdbcTemplate jdbc, Clock clock, AuditService audit,
+                                OutboxService outbox) {
         this.disputes = disputes;
         this.jdbc = jdbc;
         this.clock = clock;
+        this.audit = audit;
+        this.outbox = outbox;
     }
 
     @Transactional
@@ -63,6 +71,44 @@ public class DisputeAppealService {
             throw ApiException.conflict("APPEAL_ALREADY_FILED", "Bạn đã kháng nghị khiếu nại này.");
         }
         return new Appeal(id, disputeId, callerId, text, "PENDING", now);
+    }
+
+    /**
+     * Support's decision on a pending appeal. Accepting records that the decision should be made again and emits
+     * {@code DisputeAppealAccepted}; the money of the original decision is not moved here. Dismissing needs a note.
+     */
+    @Transactional
+    public Appeal review(UUID adminId, UUID appealId, boolean accept, String note) {
+        String text = note == null ? null : note.trim();
+        if (text != null && text.length() > 1000) {
+            throw ApiException.badRequest("VALIDATION_ERROR", "Ghi chú tối đa 1000 ký tự.");
+        }
+        if (!accept && (text == null || text.isEmpty())) {
+            throw ApiException.badRequest("VALIDATION_ERROR", "Cần ghi chú lý do bác bỏ kháng nghị.");
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "select a.dispute_id, a.appellant_id, a.reason, a.status, a.created_at from dispute_appeals a "
+                        + "where a.id = ? for update", appealId);
+        if (rows.isEmpty()) {
+            throw ApiException.notFound("Kháng nghị");
+        }
+        Map<String, Object> row = rows.get(0);
+        UUID disputeId = (UUID) row.get("dispute_id");
+        if (!"PENDING".equals(row.get("status"))) {
+            throw ApiException.invalidState("Kháng nghị này đã được xét.");
+        }
+        String resolution = accept ? "ACCEPTED" : "DISMISSED";
+        Instant now = clock.instant();
+        jdbc.update("update dispute_appeals set status = ?, resolved_by = ?, resolved_at = ?, resolution_note = ? "
+                + "where id = ?", resolution, adminId, java.sql.Timestamp.from(now), text == null || text.isEmpty() ? null : text, appealId);
+        if (accept) {
+            outbox.record("Dispute", disputeId, "DisputeAppealAccepted",
+                    Map.of("disputeId", disputeId, "appealId", appealId));
+        }
+        audit.record(adminId, "DISPUTE_APPEAL_REVIEWED", "DisputeAppeal", appealId,
+                Map.of("status", "PENDING"), Map.of("status", resolution), null);
+        return new Appeal(appealId, disputeId, (UUID) row.get("appellant_id"), (String) row.get("reason"), resolution,
+                ((java.sql.Timestamp) row.get("created_at")).toInstant());
     }
 
     @Transactional(readOnly = true)

@@ -74,4 +74,28 @@ class DisputeAppealIT extends IntegrationTest {
         clock.advance(Duration.ofDays(8));
         assertApi(() -> appeals.file(s.ownerId(), disputeId, REASON), "APPEAL_WINDOW_CLOSED");
     }
+
+    @Test
+    void supportAcceptsAPendingAppealOnceAndTheAcceptanceIsRecorded() {
+        Setup s = standardListing();
+        OrderView o = endedOrder(s, user());
+        clock.advance(Duration.ofHours(20));
+        UUID disputeId = disputes.open(s.ownerId(), o.id(), DisputeType.OWNER_DAMAGE, "rank dropped", List.of()).id();
+        UUID support = user("SUPPORT");
+        advanceAndRun(Duration.ofHours(52));
+        clock.advance(Duration.ofHours(18));
+        disputes.resolve(support, disputeId, new Decision(true, 120_000, 0, "DAMAGE_CONFIRMED", "ok", null));
+        DisputeAppealService.Appeal a = appeals.file(s.ownerId(), disputeId, REASON);
+
+        // Dismissing needs a reason; accepting records the outcome once and emits one event.
+        assertApi(() -> appeals.review(support, a.id(), false, " "), "VALIDATION_ERROR");
+        DisputeAppealService.Appeal accepted = appeals.review(support, a.id(), true, "Cần quyết định lại");
+        assertThat(accepted.status()).isEqualTo("ACCEPTED");
+        assertApi(() -> appeals.review(support, a.id(), false, "lần hai"), "INVALID_STATE");
+
+        assertThat(jdbc.queryForObject("select count(*) from outbox_events where event_type = 'DisputeAppealAccepted' "
+                + "and aggregate_id = ?", Integer.class, disputeId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from audit_logs where action = 'DISPUTE_APPEAL_REVIEWED' "
+                + "and entity_id = ?", Integer.class, a.id())).isEqualTo(1);
+    }
 }

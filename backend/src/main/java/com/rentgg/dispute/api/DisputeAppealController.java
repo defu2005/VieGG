@@ -24,10 +24,19 @@ public class DisputeAppealController {
 
     public record AppealRequest(@NotBlank @Size(max = 1000) String reason) {}
 
+    public record ReviewRequest(boolean accept, @Size(max = 1000) String note) {}
+
     @PostMapping("/disputes/{id}/appeal")
     @PreAuthorize("hasAuthority('dispute:open')")
     public Appeal file(@PathVariable UUID id, @Valid @RequestBody AppealRequest req) {
         return appeals.file(CurrentUser.id(), id, req.reason());
+    }
+
+    /** Support decides a pending appeal: accept (the decision should be made again) or dismiss (with a note). */
+    @PostMapping("/support/dispute-appeals/{id}/review")
+    @PreAuthorize("hasAuthority('dispute:resolve')")
+    public Appeal review(@PathVariable UUID id, @Valid @RequestBody ReviewRequest req) {
+        return appeals.review(CurrentUser.id(), id, req.accept(), req.note());
     }
 
     @GetMapping("/support/disputes/{id}/appeals")

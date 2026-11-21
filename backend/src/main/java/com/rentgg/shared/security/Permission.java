@@ -36,6 +36,7 @@ public enum Permission {
     LISTING_REVIEW_QUEUE("listing:review_queue", "Xem hàng đợi listing theo trạng thái"),
     LISTING_APPROVE("listing:approve", "Duyệt listing"),
     LISTING_REJECT("listing:reject", "Từ chối listing"),
+    LISTING_APPEAL_REVIEW("listing:appeal_review", "Xét kháng nghị kiểm duyệt listing"),
     LISTING_SUSPEND("listing:suspend", "Đình chỉ listing"),
 
     // --- game accounts
