@@ -1,0 +1,32 @@
+[
+  {
+    "name": "F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login",
+    "ok": true,
+    "detail": "lỗi hiển thị: \"Email hoặc mật khẩu không đúng.\"",
+    "ms": 2430
+  },
+  {
+    "name": "F4 chủ duyệt đơn \"Chờ chủ account duyệt\"",
+    "ok": true,
+    "detail": "đơn /orders/18f219ab-4eb9-454b-ae7d-0a6dc2cacc90 đã duyệt; khu \"Duyệt đơn\" đã biến mất",
+    "ms": 4796
+  },
+  {
+    "name": "F2 người thuê thấy đơn và danh sách có dữ liệu",
+    "ok": true,
+    "detail": "danh sách có 4 dòng đơn",
+    "ms": 2968
+  },
+  {
+    "name": "F2 người thuê xác minh đơn đã được chủ duyệt",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 5000ms exceeded.",
+    "ms": 6922
+  },
+  {
+    "name": "F3 admin mở \"Kiểm duyệt bài đăng\"",
+    "ok": false,
+    "detail": "locator.waitFor: Timeout 10000ms exceeded.",
+    "ms": 12470
+  }
+]

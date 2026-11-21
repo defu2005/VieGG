@@ -1,0 +1,7 @@
+PASS  F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login  (2430 ms)  lỗi hiển thị: "Email hoặc mật khẩu không đúng."
+PASS  F4 chủ duyệt đơn "Chờ chủ account duyệt"  (4796 ms)  đơn /orders/18f219ab-4eb9-454b-ae7d-0a6dc2cacc90 đã duyệt; khu "Duyệt đơn" đã biến mất
+PASS  F2 người thuê thấy đơn và danh sách có dữ liệu  (2968 ms)  danh sách có 4 dòng đơn
+FAIL  F2 người thuê xác minh đơn đã được chủ duyệt  (6922 ms)  locator.waitFor: Timeout 5000ms exceeded.
+FAIL  F3 admin mở "Kiểm duyệt bài đăng"  (12470 ms)  locator.waitFor: Timeout 10000ms exceeded.
+
+3/5 luồng đạt

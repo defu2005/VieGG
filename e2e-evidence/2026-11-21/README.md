@@ -6,3 +6,17 @@
 - `e2e-negative2/`: negative control (kỳ vọng sai ở F3), đỏ đúng chỗ, exit 1.
 - `f2-429-frames/`: khung hình từ video F2 lần chạy thứ hai, cho thấy thông báo "Bạn thao tác quá nhiều lần" (429 RATE_LIMITED) sau khi đăng nhập `renter@` nhiều lần trong một phút.
 - Lần chạy 1 và 2 không lưu ở đây: lần 1 không có lỗi; lần 2 là lần 429 nêu trên, chỉ lưu khung hình.
+
+## Lần chạy hợp lệ (2026-11-21, script ở `376e590` trên `claude/e2e-web-evidence`)
+
+Mỗi lần chạy trên DB `rentgg_e2e` mới (drop/create + khởi động lại backend), trừ khi ghi khác.
+
+| Thư mục | Kết quả | Exit | Ghi chú |
+| --- | --- | --- | --- |
+| `e2e-run8/` | 5/5 | 0 | DB mới, F2 xác minh nhãn "Đã xác nhận" |
+| `e2e-run9/` | 5/5 | 0 | DB mới lần hai, để kiểm tra lặp lại |
+| `e2e-negative4/` | 3/5 | 1 | Âm tính có chủ đích: F2 và F3 đỏ đúng chỗ |
+| `e2e-run6/` | 5/5 | — | Chạy trên DB đã dùng một lần; chỉ tham khảo |
+| `e2e-negative3/` | — | — | **Đã thay thế** bởi `e2e-negative4/` (DB đã dùng, F4 đỏ sai nguyên nhân) |
+
+Chưa phủ (không tự động hóa trong lần này): thanh toán của người thuê, tua thời gian (🕒), admin từ chối bài đăng, kiểm thử mobile/simulator (không có máy được gắn vào phiên).
