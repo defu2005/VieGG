@@ -2,8 +2,10 @@ package com.rentgg.order.application;
 
 import com.rentgg.order.domain.Order;
 import com.rentgg.order.infrastructure.OrderRepository;
+import com.rentgg.shared.web.RequestLogContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -66,13 +68,16 @@ public class OrderJobs {
     private int each(List<UUID> ids, Predicate<Order> step) {
         int n = 0;
         for (UUID id : ids) {
-            try {
-                Boolean done = tx.execute(s -> orders.lockForJob(id).map(step::test).orElse(false));
-                if (Boolean.TRUE.equals(done)) {
-                    n++;
+            // Every log line of this order's step, including the failure line, carries orderId.
+            try (MDC.MDCCloseable ignored = MDC.putCloseable(RequestLogContext.ORDER_ID, id.toString())) {
+                try {
+                    Boolean done = tx.execute(s -> orders.lockForJob(id).map(step::test).orElse(false));
+                    if (Boolean.TRUE.equals(done)) {
+                        n++;
+                    }
+                } catch (RuntimeException e) {
+                    log.error("Order job step failed for order {}", id, e);
                 }
-            } catch (RuntimeException e) {
-                log.error("Order job step failed for order {}", id, e);
             }
         }
         return n;
