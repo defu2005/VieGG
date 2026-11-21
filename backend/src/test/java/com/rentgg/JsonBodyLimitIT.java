@@ -33,6 +33,13 @@ class JsonBodyLimitIT extends IntegrationTest {
     }
 
     @Test
+    void vendorJsonTypesAreLimitedToo() throws Exception {
+        mvc.perform(post("/api/v1/auth/login").contentType("application/vnd.api+json")
+                        .content(loginWithPadding(1_048_577)))
+                .andExpect(status().isPayloadTooLarge());
+    }
+
+    @Test
     void multipartUploadsAreNotLimitedByTheJsonRule() throws Exception {
         var file = new org.springframework.mock.web.MockMultipartFile("file", "a.bin", "application/octet-stream",
                 new byte[1_100_000]);

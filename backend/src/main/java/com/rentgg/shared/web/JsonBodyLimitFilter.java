@@ -31,7 +31,7 @@ public class JsonBodyLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String type = request.getContentType();
-        if (type == null || !type.toLowerCase().startsWith("application/json")) {
+        if (!isJson(type)) {
             chain.doFilter(request, response);
             return;
         }
@@ -45,6 +45,15 @@ public class JsonBodyLimitFilter extends OncePerRequestFilter {
             return;
         }
         chain.doFilter(new CachedBodyRequest(request, body), response);
+    }
+
+    /** application/json and any application/*+json (for example application/vnd.api+json). */
+    static boolean isJson(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+        String t = contentType.toLowerCase();
+        return t.startsWith("application/json") || (t.startsWith("application/") && t.contains("+json"));
     }
 
     private static void reject(HttpServletResponse response) throws IOException {
