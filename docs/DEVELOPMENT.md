@@ -86,7 +86,7 @@ Chỉ liệt kê tên. Giá trị thật không được ghi vào tài liệu ha
 | `RENTGG_MEDIA_STORAGE` | `deploy/.env.prod.example` | `s3` hoặc lưu database |
 | `RENTGG_CORS_ALLOWED_ORIGINS`, `RENTGG_PUBLIC_BASE_URL`, `RENTGG_FRONTEND_BASE_URL` | `deploy/.env.prod.example` | URL công khai |
 
-Cấu hình đầy đủ và giá trị mặc định dev nằm ở `backend/src/main/resources/application.yml`. Giá trị mặc định dev trong file này chỉ dành cho máy phát triển; `StartupSafetyCheck` chặn chúng trên staging và prod.
+Cấu hình đầy đủ và giá trị mặc định dev nằm ở `backend/src/main/resources/application.yml`. Giá trị mặc định dev trong file này chỉ dành cho máy phát triển; `StartupSafetyCheck` kiểm tra một số giá trị này khi khởi động trên staging và prod (xem [ARCHITECTURE.md](ARCHITECTURE.md#thanh-toán)).
 
 ## Tài khoản mẫu
 
@@ -120,15 +120,6 @@ Code: `backend/src/main/java/com/rentgg/jobs/devtime/`.
 - Đổi schema: xem [DATABASE.md](DATABASE.md#migration). Không sửa migration đã áp dụng.
 - Đổi endpoint: xem [API.md](API.md).
 - Thời gian nghiệp vụ đọc qua bean `Clock`, không dùng `Instant.now()`.
-
-## Khi có lỗi thường gặp
-
-| Triệu chứng | Nguyên nhân thường gặp | Việc cần làm |
-|---|---|---|
-| Backend không khởi động, báo lỗi kết nối database | PostgreSQL chưa chạy hoặc sai cổng | Kiểm tra cổng 5432 |
-| Backend khởi động, báo lỗi Flyway | Database có migration không khớp | Kiểm tra `flyway_schema_history`; không sửa migration cũ |
-| Web báo lỗi gọi API | Backend chưa chạy hoặc `VITE_API_TARGET` sai | Kiểm tra `http://localhost:8080/actuator/health` |
-| Port đã bị chiếm | Hai PostgreSQL hoặc hai backend cùng chạy | Tắt bản thừa |
 
 ## Cập nhật tài liệu này
 

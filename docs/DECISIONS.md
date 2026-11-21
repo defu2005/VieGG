@@ -44,11 +44,12 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 
 - `ledger_transactions`, `ledger_postings`, `audit_logs` chặn UPDATE, DELETE, TRUNCATE (`V7__append_only_triggers.sql`).
 - Khi commit, tổng posting của mỗi transaction phải bằng 0 và có ít nhất 2 posting (constraint trigger trì hoãn đến commit).
-- Sửa sai bằng bút toán đảo, không sửa dòng cũ.
+- Dòng sổ cũ không sửa được ở tầng database. Cách sửa sai chưa được ghi lại: UNKNOWN.
 
 ### D-08: Ràng buộc đặt lịch ở tầng database (ACTIVE)
 
-- Đơn không chồng khoảng thuê trên cùng account: exclusion constraint `ex_orders_no_overlap` (`V14`).
+- Đơn không chồng khoảng thuê trên cùng account: exclusion constraint `ex_orders_no_overlap` (định nghĩa cuối ở `V14`).
+- Lịch chặn của account không chồng nhau: exclusion constraint `ex_account_blocks_no_overlap` (`V26`).
 - Đơn không giao với lịch chặn của account: trigger `trg_orders_account_blocks` (`V26`).
 - Chặn ở database, không chỉ ở code.
 
@@ -120,6 +121,24 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 ### D-20: Không sửa System Design, Use Cases, Dev Guide, Cloud Brief, Dev Seed trong đợt tài liệu này (ACTIVE)
 
 - Các file đó do người quản lý dự án sở hữu. Tài liệu kỹ thuật mới ghi theo code và tham chiếu tới các file đó.
+
+## Khác biệt so với tài liệu thiết kế (ghi theo code)
+
+Các điểm dưới đây có trong code nhưng không có (hoặc khác) trong `docs/RentGG_System_Design_v1.2.md`. Kiểm tra 2026-11-21.
+
+### D-21: Endpoint bổ sung (ACTIVE)
+
+- `POST /api/v1/orders/{id}/otp-note`: ghi chú OTP trên đơn (`order/api/OrderController.java`). Chưa đối chiếu với UC-08 trong `docs/RentGG_Use_Cases_China_Model_v8.md`; ý nghĩa nghiệp vụ UNKNOWN.
+- `GET /api/v1/admin/ledger/reconciliation`: đối soát (`ledger/api/LedgerAdminController.java`).
+- `GET /api/v1/admin/ledger/orders/{orderId}`: sổ kế toán của một đơn (cùng controller).
+
+### D-22: Khiếu nại rủi ro của người thuê chỉ trong thời gian thuê (ACTIVE)
+
+- Loại `RENTER_RISK` chỉ người thuê mở được, và chỉ khi đơn ở trạng thái `IN_RENTAL` (`dispute/application/DisputeService.java`, nhánh `RENTER_RISK`, lỗi `COMPLAINT_WINDOW_CLOSED`).
+
+### D-23: Hoàn tiền lỗi được thử lại bằng job (ACTIVE, cơ chế chi tiết UNKNOWN)
+
+- Job `retryFailedRefunds` thử lại các hoàn tiền lỗi (`jobs/Jobs.java`). Chưa kiểm được chính sách backoff trong code: UNKNOWN.
 
 ## Chưa quyết định
 

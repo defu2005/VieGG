@@ -43,7 +43,8 @@ Bảng trên là đủ 42 bảng khi đối chiếu với `grep -ho "CREATE TABL
 
 - **Append-only** (`V7__append_only_triggers.sql`): trigger chặn `UPDATE`, `DELETE` và `TRUNCATE` trên `audit_logs`, `ledger_transactions`, `ledger_postings`. Lỗi trả về là `Table ... is append-only`.
 - **Sổ cân bằng** (`V7`): constraint trigger `trg_ledger_balanced` (`AFTER INSERT ON ledger_postings`, `DEFERRABLE INITIALLY DEFERRED`) gọi `check_ledger_tx_balanced()`. Khi commit, tổng `amount` của các posting cùng `transaction_id` phải bằng 0, và phải có ít nhất 2 posting. Lỗi trả về là `check_violation`.
-- **Đơn không chồng khoảng thuê trên cùng account** (`V14`): exclusion constraint `ex_orders_no_overlap` (`EXCLUDE USING gist (game_account_id WITH =, rental_period WITH &&)`), áp dụng khi `status` thuộc `PENDING_PAYMENT`, `AWAITING_OWNER_APPROVAL`, `CONFIRMED`, `IN_RENTAL`. `rental_period` là cột sinh tự động, gồm cả thời gian gia hạn đang được giữ.
+- **Đơn không chồng khoảng thuê trên cùng account**: exclusion constraint `ex_orders_no_overlap` (`EXCLUDE USING gist (game_account_id WITH =, rental_period WITH &&)`). Được tạo ở `V3` và thay bằng định nghĩa cuối cùng ở `V14`, áp dụng khi `status` thuộc `PENDING_PAYMENT`, `AWAITING_OWNER_APPROVAL`, `CONFIRMED`, `IN_RENTAL`. `rental_period` là cột sinh tự động (`V14`), gồm cả thời gian gia hạn đang được giữ.
+- **Lịch chặn của account không chồng nhau** (`V26`): exclusion constraint `ex_account_blocks_no_overlap` trên `account_blocks`.
 - **Đơn không giao với lịch chặn của account** (`V26`): trigger `trg_orders_account_blocks` gọi `orders_check_account_blocks()`. Hàm khóa lịch của account, rồi báo lỗi nếu `rental_period` của đơn giao với `account_blocks.period` cùng account. Đơn đã giữ chỗ và chỉ thu hẹp khoảng thuê thì bỏ qua kiểm tra.
 - **Duyệt không tự phê duyệt** (`V5`): `approval_requests` có `CONSTRAINT ck_approval_four_eyes CHECK (approved_by IS NULL OR approved_by <> requested_by)`.
 - Kiểm tra toàn bộ ràng buộc: `grep -n "EXCLUDE\|ex_orders_no_overlap\|CHECK\|TRIGGER" backend/src/main/resources/db/migration/*.sql`.
@@ -75,5 +76,5 @@ Bảng trên là đủ 42 bảng khi đối chiếu với `grep -ho "CREATE TABL
 ## Ràng buộc và lưu ý khi thay đổi schema
 
 - Đổi cột đang có dữ liệu thật cần migration bảo toàn dữ liệu. Chưa có quy trình được ghi lại cho việc này.
-- Bảng append-only không cho `UPDATE` hay `DELETE`. Nếu cần sửa dữ liệu sổ, dùng bút toán đảo (theo nghiệp vụ của `ledger`), không sửa trực tiếp.
+- Bảng append-only không cho `UPDATE` hay `DELETE`. Không tìm thấy logic bút toán đảo trong `ledger/` (kiểm tra 2026-11-21), nên cách sửa sai dữ liệu sổ là UNKNOWN.
 - Sau khi thêm bảng mới, cập nhật danh sách ở mục trên.

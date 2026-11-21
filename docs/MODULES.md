@@ -2,7 +2,10 @@
 
 Nguồn duy nhất về danh sách module. Ghi theo code tại `backend/src/main/java/com/rentgg/`, ngày kiểm tra **2026-11-21** (nhánh `claude/docs-system` từ `dev` @ `e439d1e`).
 
-Mỗi module có cấu trúc `api` (controller, DTO) / `application` (service, use case) / `domain` (entity, quy tắc) / `infrastructure` (repository, adapter). Ngoại lệ được ghi trong bảng.
+Bố cục chuẩn của module nghiệp vụ là `api` (controller, DTO) / `application` (service, use case) / `domain` (entity, quy tắc) / `infrastructure` (repository, adapter). Kiểm tra 2026-11-21 bằng `[ -d backend/src/main/java/com/rentgg/<module>/<tầng> ]` cho từng module, các ngoại lệ là:
+
+- Thiếu tầng: `audit` (thiếu `domain`, `infrastructure`), `legal` (thiếu `domain`, `infrastructure`), `deposit` (thiếu `api`, vì không có controller riêng; xem bảng module), `ledger` (thiếu `infrastructure`), `settings` (thiếu `infrastructure`).
+- Không có thư mục tầng: `config` và `jobs` (class nằm ở gốc package), `shared` (package hạ tầng dùng chung theo chức năng: `crypto`, `error`, `logging`, `media`, `outbox`, `ratelimit`, `security`, `web`).
 
 ## Bảng module
 
