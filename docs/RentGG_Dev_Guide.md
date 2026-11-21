@@ -47,6 +47,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Làm gì:** kiểm tra tab Actions của `defu2005/VieGG` cho ba workflow `backend.yml`, `web.yml`, `ios.yml`. Sửa lỗi nếu có.
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
+- **Đã đạt (2026-11-21):** `web.yml` và `backend.yml` có kết quả xanh trên đầu nhánh các PR. Lần đỏ còn lại là deadlock đã biết (PR #3), không phải cấu hình CI; `ios.yml` xanh (run `44870630578`).
 - **Kiểm thử:** xem log CI.
 - **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky. Lịch sử theo commit (cập nhật khi có kết quả mới):
   - `44692352655` (`5e91584`, CI): **đỏ**, deadlock `concurrentBooking_exactlyOneWins`.
@@ -57,7 +58,7 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
   - Local, cùng commit đầu: 2 fail trên 5 lần chạy `MoneyAndApprovalIT` (gồm 1 baseline pass, 1 full suite fail, 3 lần chạy lại: 2 pass, 1 fail).
 - **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
-- **Kiểm tra CI (2026-11-21, hàng 21 của brief; nhánh `claude/row-20-notification-templates` và các nhánh xếp chồng): ĐÃ KIỂM TRA.** CI trên từng đầu nhánh của chuỗi PR #12 đến #21 (`claude/row-12-*` đến `claude/row-20-*`): đầu nhánh có lần chạy Backend và Web xanh (Backend xanh ở row 12, 14, 15, 16, 18, 19, 20; row 13, 17 có một lần đỏ rồi xanh trên cùng commit). Lỗi đỏ gặp phải và nguyên nhân: (a) "Fetch Maven wrapper": `wget` tới repo.maven.apache.org bị lỗi tải, lỗi hạ tầng của runner, không phải code; chạy lại thì xanh. (b) `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`: deadlock đã biết (PR #3, task `task_0d67c9db`), không liên quan tới hàng này. Lỗi thật đã sửa: từ row 14 CI báo `FATAL: sorry, too many clients already` do mỗi context test giữ pool Hikari 30 kết nối và các lớp `@AutoConfigureObservability` làm thêm context. Sửa: `application-test.yml` pool tối đa 8, tối thiểu rảnh 2; hai lớp observability có `@DirtiesContext(AFTER_CLASS)`. Đo cục bộ đỉnh 12 kết nối (`max_connections` 100). Sửa được merge xuôi từ row 12 đến row 20. Chưa xác minh: CI thật của `ios.yml` và `android` (mục 22, 23); xem các mục đó.
+- **Kiểm tra CI (2026-11-21, hàng 21 của brief; nhánh `claude/row-20-notification-templates` và các nhánh xếp chồng): ĐÃ KIỂM TRA.** CI trên từng đầu nhánh của chuỗi PR #12 đến #21 (`claude/row-12-*` đến `claude/row-20-*`): đầu nhánh có lần chạy Backend và Web xanh (Backend xanh ở row 12, 14, 15, 16, 18, 19, 20; row 13, 17 có một lần đỏ rồi xanh trên cùng commit). Lỗi đỏ gặp phải và nguyên nhân: (a) "Fetch Maven wrapper": `wget` tới repo.maven.apache.org bị lỗi tải, lỗi hạ tầng của runner, không phải code; chạy lại thì xanh. (b) `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`: deadlock đã biết (PR #3, task `task_0d67c9db`), không liên quan tới hàng này. Lỗi thật đã sửa: từ row 14 CI báo `FATAL: sorry, too many clients already` do mỗi context test giữ pool Hikari 30 kết nối và các lớp `@AutoConfigureObservability` làm thêm context. Sửa: `application-test.yml` pool tối đa 8, tối thiểu rảnh 2; hai lớp observability có `@DirtiesContext(AFTER_CLASS)`. Đo cục bộ đỉnh 12 kết nối (`max_connections` 100). Sửa được merge xuôi từ row 12 đến row 24. iOS: đã xác minh bằng run `44870630578` (xem §6.1). Android không có CI; đã xác minh build cục bộ (xem §6.2). Trạng thái trên đầu nhánh hiện tại: lần đỏ còn lại là deadlock `concurrentBooking_exactlyOneWins`, bản sửa nằm ở PR #3; body từng PR ghi kết quả theo đầu nhánh. Sửa được merge xuôi từ row 12 đến row 24.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
 Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là một checklist:
@@ -294,6 +295,7 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 ### 6.1 iOS: sửa lỗi build trên CI
 - **Làm gì:** xem log `ios.yml` (macOS-15), sửa lỗi biên dịch Xcode nếu có. `RentGGCore` đã có 39 unit test và 6 test tích hợp (27/10).
 - **Xong khi:** `ios.yml` xanh.
+- **Đã đạt (2026-11-21):** `ios.yml` xanh (run `44870630578`, nhánh `claude/row-22-ios-ci`).
 - **Kiểm thử:** CI. Chạy trên Simulator thủ công cần máy Mac, để sau.
 
 - **Kết quả §6.1 (2026-11-21, nhánh `claude/row-22-ios-ci`): XANH, không cần sửa.** Lịch sử `ios.yml` trước đó chỉ có một lần chạy (nhánh `main`, 2026-10-29, xanh). Hôm nay chạy thủ công bằng `workflow_dispatch` trên nhánh `claude/row-22-ios-ci`: **run `44870630578`, xanh**, job `build` thành công, không bước nào đỏ (test `RentGGCore`, XcodeGen, build cho Simulator). Không có log đỏ để chẩn đoán, nên không có lỗi nào được sửa. Không đổi `ios.yml`.
@@ -301,9 +303,10 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 ### 6.2 Android: ký bản release từ biến môi trường
 - **Làm gì:** đọc keystore path, alias, mật khẩu từ biến môi trường hoặc `~/.gradle/gradle.properties` trên máy (ngoài repo). `android/gradle.properties` **được commit** trong repo, chỉ chứa cấu hình build, không đặt khóa ký vào đó; không đưa khóa vào `build.gradle.kts`.
 - **Xong khi:** `./gradlew assembleRelease` tạo APK đã ký khi có biến; khi thiếu, rơi về bản unsigned như hiện tại.
+- **Đã đạt (2026-11-21):** cả hai nhánh đã kiểm chứng (xem kết quả bên dưới).
 - **Kiểm thử:** `[M]` (build). Keystore thật là `[S]`.
 
-- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ XÁC MINH.** Cần `dl.google.com` trong danh sách host được phép (đã thêm vào môi trường Default, có sự đồng ý của chủ dự án). Cài SDK (`platforms;android-35`, `build-tools;35.0.0`) bằng `sdkmanager`. Kết quả:
+- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ XÁC MINH.** Cần `dl.google.com` trong danh sách host được phép. Host này đã được cho phép tạm thời trong môi trường Default để kiểm tra, có sự đồng ý của chủ dự án, và có thể gỡ ngay sau khi kiểm tra xong. Cài SDK (`platforms;android-35`, `build-tools;35.0.0`) bằng `sdkmanager`. Kết quả:
   - Không biến ký: `assembleRelease` tạo `app-release-unsigned.apk`; `apksigner verify` báo không có chữ ký, đúng như kỳ vọng.
   - Có biến ký với keystore thử tạm (ngoài repo, đã xóa sau khi chạy): tạo `app-release.apk`; `apksigner verify --print-certs` đọc đúng chứng chỉ của keystore thử.
   - Thiếu `RENTGG_KEY_ALIAS` khi đã có `RENTGG_KEYSTORE_PATH`: build dừng ngay với thông báo tiếng Việt.
@@ -325,6 +328,7 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
   - tình trạng Docker, ảo hóa Android;
   - trạng thái các mục §4.1 sau khi làm.
 - **Xong khi:** mỗi tài liệu có ngày cập nhật mới và không còn mục nào mâu thuẫn với code.
+- **Đã đạt (2026-11-21):** ba file có ngày cập nhật, mục §4.1 đã đối chiếu với PR, số migration là 35 (V1–V35), CI có cho backend, web và iOS. Vẫn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 - **Kiểm thử:** đọc lại; đối chiếu với `git log`.
 
 ---
