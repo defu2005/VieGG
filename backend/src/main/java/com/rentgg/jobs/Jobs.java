@@ -26,6 +26,7 @@ public class Jobs {
 
     private final OrderJobs orderJobs;
     private final com.rentgg.dispute.application.DisputeService disputes;
+    private final com.rentgg.legal.application.LegalNoticeService legalNotices;
     private final DepositService deposits;
     private final WalletService wallet;
     private final GameAccountService gameAccounts;
@@ -36,8 +37,10 @@ public class Jobs {
 
     public Jobs(OrderJobs orderJobs, DepositService deposits, WalletService wallet, GameAccountService gameAccounts,
                 PaymentService payments, OutboxService outbox, MeterRegistry meters, RentGgProperties props,
-                com.rentgg.dispute.application.DisputeService disputes) {
+                com.rentgg.dispute.application.DisputeService disputes,
+                com.rentgg.legal.application.LegalNoticeService legalNotices) {
         this.disputes = disputes;
+        this.legalNotices = legalNotices;
         this.orderJobs = orderJobs;
         this.deposits = deposits;
         this.wallet = wallet;
@@ -80,6 +83,10 @@ public class Jobs {
         return run("markDisputeDeadlinesOverdue", () -> disputes.markDeadlinesOverdue(batch()));
     }
 
+    public int markLegalNoticeDeadlines() {
+        return run("markLegalNoticeDeadlines", () -> legalNotices.markDeadlines(batch()));
+    }
+
     public int publishOutbox() { return run("publishOutbox", outbox::publishPending); }
 
     /** Convenience for tests and the dev endpoint: one full cycle in a sensible order. */
@@ -95,6 +102,7 @@ public class Jobs {
         markRotationOverdue();
         retryFailedRefunds();
         markDisputeDeadlinesOverdue();
+        markLegalNoticeDeadlines();
         publishOutbox();
     }
 

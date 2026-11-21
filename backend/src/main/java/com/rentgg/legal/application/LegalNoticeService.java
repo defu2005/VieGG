@@ -1,6 +1,8 @@
 package com.rentgg.legal.application;
 
+import com.rentgg.audit.application.AuditService;
 import com.rentgg.shared.error.ApiException;
+import com.rentgg.shared.outbox.OutboxService;
 import com.rentgg.shared.web.PageResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -11,7 +13,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -22,14 +26,21 @@ import java.util.UUID;
 public class LegalNoticeService {
 
     public static final Duration RESPONSE_WINDOW = Duration.ofDays(30);
+    public static final Duration REMIND_BEFORE = Duration.ofDays(3);
     public static final String OPEN = "OPEN";
+    public static final String RESPONDED = "RESPONDED";
+    public static final String CLOSED = "CLOSED";
 
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    private final AuditService audit;
+    private final OutboxService outbox;
 
-    public LegalNoticeService(JdbcTemplate jdbc, Clock clock) {
+    public LegalNoticeService(JdbcTemplate jdbc, Clock clock, AuditService audit, OutboxService outbox) {
         this.jdbc = jdbc;
         this.clock = clock;
+        this.audit = audit;
+        this.outbox = outbox;
     }
 
     @Transactional
@@ -51,6 +62,73 @@ public class LegalNoticeService {
                 id, c.gameId(), c.publisherName(), c.referenceNo(), c.subject(), c.body(),
                 Timestamp.from(receivedAt), Timestamp.from(deadline), recordedBy, Timestamp.from(now));
         return get(id);
+    }
+
+    /** Staff move a notice along OPEN → RESPONDED → CLOSED. Every move is audited; nothing else changes the status. */
+    @Transactional
+    public Notice transition(UUID actorId, UUID id, String to, String note) {
+        String text = note == null ? null : note.trim();
+        if (text != null && text.length() > 1000) {
+            throw ApiException.badRequest("VALIDATION_ERROR", "Ghi chú tối đa 1000 ký tự.");
+        }
+        List<String> current = jdbc.queryForList("select status from legal_notices where id = ? for update", String.class, id);
+        if (current.isEmpty()) {
+            throw ApiException.notFound("Thông báo pháp lý");
+        }
+        String from = current.get(0);
+        boolean allowed = (OPEN.equals(from) && RESPONDED.equals(to)) || (RESPONDED.equals(from) && CLOSED.equals(to));
+        if (!allowed) {
+            throw ApiException.invalidState("Không thể chuyển hồ sơ từ " + from + " sang " + to + ".");
+        }
+        Instant now = clock.instant();
+        jdbc.update("update legal_notices set status = ?, status_changed_at = ? where id = ?", to, Timestamp.from(now), id);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("status", to);
+        if (text != null && !text.isEmpty()) {
+            after.put("note", text);
+        }
+        audit.record(actorId, "LEGAL_NOTICE_TRANSITIONED", "LegalNotice", id, Map.of("status", from), after, null);
+        return get(id);
+    }
+
+    /**
+     * Reminds the staff once when an open notice is within {@link #REMIND_BEFORE} of its deadline, and marks it overdue
+     * once after the deadline. Each step locks the rows it changes and stamps them, so a re-run or a parallel run does
+     * not repeat an event. Returns the number of events emitted by this call.
+     */
+    @Transactional
+    public int markDeadlines(int batch) {
+        Instant now = clock.instant();
+        int n = 0;
+        List<UUID> overdue = jdbc.queryForList("""
+                update legal_notices set overdue_at = ? where id in (
+                    select id from legal_notices
+                     where status = 'OPEN' and overdue_at is null and response_deadline < ?
+                     order by response_deadline limit ? for update skip locked)
+                returning id""", UUID.class, Timestamp.from(now), Timestamp.from(now), batch);
+        for (UUID id : overdue) {
+            recordEvent(id, "LegalNoticeOverdue");
+            n++;
+        }
+        List<UUID> soon = jdbc.queryForList("""
+                update legal_notices set reminded_at = ? where id in (
+                    select id from legal_notices
+                     where status = 'OPEN' and reminded_at is null and overdue_at is null
+                       and response_deadline >= ? and response_deadline <= ?
+                     order by response_deadline limit ? for update skip locked)
+                returning id""", UUID.class, Timestamp.from(now), Timestamp.from(now),
+                Timestamp.from(now.plus(REMIND_BEFORE)), batch);
+        for (UUID id : soon) {
+            recordEvent(id, "LegalNoticeDeadlineSoon");
+            n++;
+        }
+        return n;
+    }
+
+    private void recordEvent(UUID id, String eventType) {
+        Instant deadline = jdbc.queryForObject("select response_deadline from legal_notices where id = ?",
+                (rs, n) -> rs.getTimestamp(1).toInstant(), id);
+        outbox.record("LegalNotice", id, eventType, Map.of("noticeId", id, "responseDeadline", deadline.toString()));
     }
 
     @Transactional(readOnly = true)
