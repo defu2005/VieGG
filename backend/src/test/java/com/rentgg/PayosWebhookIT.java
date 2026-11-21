@@ -144,6 +144,8 @@ class PayosWebhookIT extends IntegrationTest {
         assertThat(first).isNotNull();
         assertThat(first.status().value()).isEqualTo(502);
         assertThat(first.code()).isEqualTo("PAYMENT_PROVIDER_ERROR");
+        // The client gets a generic message; the provider endpoint stays in the server log.
+        assertThat(first.getMessage()).doesNotContain("127.0.0.1").doesNotContain("http");
         assertThat(walletBalance(payer)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from payment_intents where payer_id = ? and checkout_url is null",
                 Long.class, payer)).isEqualTo(1L);
