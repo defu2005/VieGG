@@ -110,13 +110,9 @@ public class PaymentService {
                     base + "return/" + code, base + "webhook/" + code, clientIp,
                     Instant.now().plus(Duration.ofMinutes(15))));
         } catch (PaymentGateway.ProviderException e) {
-            // The full message (with the provider endpoint for transport errors) goes to the log only.
             log.warn("Checkout with {} failed for intent {}: {}", gateway.provider(), intentId, e.getMessage());
             meters.counter("rentgg_payment_checkouts_total", "provider", gateway.provider(), "result", "error").increment();
-            String message = e.getMessage() == null || e.getMessage().contains("://")
-                    ? "Cổng thanh toán tạm thời không phản hồi, thử lại sau."
-                    : e.getMessage();
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "PAYMENT_PROVIDER_ERROR", message);
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "PAYMENT_PROVIDER_ERROR", e.getMessage());
         }
         meters.counter("rentgg_payment_checkouts_total", "provider", gateway.provider(), "result", "ok").increment();
         return tx.execute(s -> {
