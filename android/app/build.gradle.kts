@@ -5,6 +5,21 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+// Khóa ký release không nằm trong repo. Đọc từ biến môi trường hoặc ~/.gradle/gradle.properties:
+//   RENTGG_KEYSTORE_PATH, RENTGG_KEYSTORE_PASSWORD, RENTGG_KEY_ALIAS, RENTGG_KEY_PASSWORD
+// Thiếu RENTGG_KEYSTORE_PATH thì bản release không ký (unsigned). Thiếu biến khác khi đã có path thì build dừng.
+fun releaseSecret(name: String): String? =
+    (System.getenv(name) ?: (project.findProperty(name) as String?))?.takeIf { it.isNotBlank() }
+
+val releaseKeystorePath = releaseSecret("RENTGG_KEYSTORE_PATH")
+if (releaseKeystorePath != null) {
+    listOf("RENTGG_KEYSTORE_PASSWORD", "RENTGG_KEY_ALIAS", "RENTGG_KEY_PASSWORD").forEach {
+        if (releaseSecret(it) == null) {
+            throw GradleException("Thiếu $it cùng RENTGG_KEYSTORE_PATH để ký bản release.")
+        }
+    }
+}
+
 android {
     namespace = "com.rentgg.app"
     compileSdk = 35
@@ -15,6 +30,17 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseSecret("RENTGG_KEYSTORE_PASSWORD")
+                keyAlias = releaseSecret("RENTGG_KEY_ALIAS")
+                keyPassword = releaseSecret("RENTGG_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -28,6 +54,9 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.rentgg.example/api/v1/\"")
             buildConfigField("boolean", "DEV_TOOLS", "false")
             isMinifyEnabled = true
+            if (releaseKeystorePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
