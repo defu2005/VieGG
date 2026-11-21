@@ -1,6 +1,6 @@
 # RentGG — Tình trạng Frontend
 
-**Ngày:** 2026-10-26 · **Rà soát:** 2026-10-29
+**Ngày:** 2026-10-26 · **Rà soát:** 2026-11-21 (CI web: `web.yml` có, chạy typecheck và build trên đầu nhánh các PR; xem Dev Guide mục 17)
 **Mã nguồn:** `frontend/` (React 18, TypeScript, Vite, React Router)
 **Đối chiếu với:** `docs/RentGG_Implementation_Status.md` và API backend trong `backend/`
 

@@ -1,6 +1,6 @@
 # RentGG — Báo cáo tình trạng triển khai Backend Phase 0
 
-**Ngày:** 2026-10-26 · **Rà soát lại:** 2026-10-29
+**Ngày:** 2026-10-26 · **Rà soát lại:** 2026-11-21
 **Đối chiếu với:** System Design v1.2, Use Case v8, Validation Checklist v1.0
 **Mã nguồn:** `C:\Users\defu\Documents\RentGG` · GitHub: https://github.com/defu2005/VieGG (nhánh `main`)
 
@@ -11,10 +11,10 @@
 | Hạng mục | Trạng thái |
 |---|---|
 | Backend MVP (Java 21, Spring Boot 3.3.5, PostgreSQL 16) | **Xong.** Biên dịch sạch, chạy được với profile `dev` |
-| Schema DB (29 migration Flyway, V1–V29) | **Xong** theo §5; các bản sau V7 bổ sung RBAC, ảnh listing, gia hạn đơn, helpdesk (xem 2.2) |
+| Schema DB (35 migration Flyway, V1–V35) | **Xong** theo §5; các bản sau V7 bổ sung RBAC, ảnh listing, gia hạn đơn, helpdesk (xem 2.2) |
 | Use Case P0 | **Đủ các luồng chính**. Một số chi tiết phụ còn thiếu (mục 4) |
 | Kiểm thử | Khoảng 30 file test (tích hợp, unit, kiến trúc, phân quyền), vẫn phủ các kịch bản bắt buộc T1–T18 (§18.2). **Số liệu "31/31" của báo cáo cũ đã lỗi thời; cần chạy lại `mvn test` để có kết quả mới** |
-| Đóng gói | Có Dockerfile backend và service `app` trong docker-compose. **Chưa có** Dockerfile/service cho frontend và CI backend. Máy dev dùng PostgreSQL portable thay Docker |
+| Đóng gói | Có Dockerfile backend và service `app` trong docker-compose. **Chưa có** Dockerfile/service cho frontend. CI backend và web đã có (2026-11-21). Máy dev dùng PostgreSQL portable thay Docker |
 | Adapter PSP | Đã có code cho MoMo, PayOS, VNPay, ZaloPay (`payment/infrastructure/psp`), **chưa xác nhận với sandbox của nhà cung cấp** |
 | Việc nghiệp vụ ngoài code (checklist, phỏng vấn) | **Chưa làm.** Đây là việc của đội RentGG |
 
@@ -50,7 +50,15 @@
 | V7 | Trigger append-only (chặn UPDATE/DELETE/TRUNCATE) cho ledger và audit. Constraint trigger deferred bảo đảm mỗi bút toán có tổng = 0 |
 | V8 | Phân quyền RBAC (vai trò, quyền) |
 | V9 | Ảnh listing |
-| V10–V29 | Gồm đính kèm bằng chứng khiếu nại (V13), gia hạn đơn (V14), helpdesk (V28)… Danh sách đầy đủ: `backend/src/main/resources/db/migration` |
+| V10–V29 | Gồm đính kèm bằng chứng khiếu nại (V13), gia hạn đơn (V14), helpdesk (V28)… |
+| V30 | Khóa lưu trữ media (`RENTGG_MEDIA_STORAGE=s3`) |
+| V31 | MFA cho nhân viên: `refresh_tokens.mfa_verified`, bảng `user_totp` |
+| V32 | Quyền `audit:read` cho ADMIN |
+| V33 | `dispute_appeals`: kháng nghị một lần cho mỗi chủ trên mỗi khiếu nại |
+| V34 | `legal_notices`: hồ sơ thông báo pháp lý, có hạn phản hồi 30 ngày |
+| V35 | `disputes.deadline_overdue_at` và chỉ mục khiếu nại quá hạn |
+
+Danh sách đầy đủ: `backend/src/main/resources/db/migration`. Không sửa V1–V30.
 
 ### 2.3. Độ phủ Use Case P0
 
@@ -129,23 +137,23 @@ TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test ./mvnw test
 
 | # | Hạng mục | Mức | Chi tiết |
 |---|---|---|---|
-| 1 | Bộ lọc che dữ liệu nhạy cảm trong log (§16.1) | Cao | Mới che qua `toString()` của DTO và không log body. Chưa có lớp lọc thứ hai cho các khóa `password/token/secret/authorization` |
-| 2 | Tách quyền user DB (§5.4 ghi chú, §14.3) | Cao | Chưa tạo `rentgg_app` không có quyền TRUNCATE/DROP và `rentgg_migrator` riêng cho migration |
-| 3 | Swagger trên staging/prod (§11.1) | Cao | Đang mở công khai ở mọi profile. Cần tắt hoặc bắt xác thực |
-| 4 | Chạy thử Docker và Testcontainers | Cao | Dockerfile, compose và nhánh Testcontainers chưa chạy được vì máy không có Docker |
-| 5 | Re-auth khi xem credentials (D5) | Trung bình | Đã có cờ `rentgg.credentials.require-reauth` nhưng chưa dùng tới |
-| 6 | Rate limit đăng nhập lũy tiến (§12.5) | Trung bình | Mới có giới hạn cố định 5/phút, 20/giờ. Chưa có thời gian chờ tăng dần sau nhiều lần sai |
-| 7 | Tín hiệu lạm dụng khi vượt giới hạn xem credentials (UC-08) | Thấp | Hiện chỉ ghi audit `CREDENTIAL_VIEW_RATE_LIMITED`, chưa ghi `abuse_signals` |
-| 8 | Metrics còn thiếu (§16.2) | Trung bình | Chưa có `rentgg_rotation_duration_seconds`, `rentgg_rotation_overdue_total`, `rentgg_deposits_by_status` (số lượng). `rentgg_orders_transition_total` chưa phủ mọi chuyển trạng thái |
-| 9 | MDC `userId` / `orderId` trong log | Thấp | Đã có `traceId` và `requestPath`. Chưa gắn user và đơn |
-| 10 | Cảnh báo khi outbox kẹt hoặc refund lỗi quá số lần | Trung bình | Mới ghi log ERROR và gauge. Chưa nối Alertmanager hay rule alert |
-| 11 | Endpoint quản trị còn thiếu | Trung bình | Danh sách account chờ `verify-recovery`, danh sách user, tra cứu audit log |
-| 12 | Kháng nghị quyết định kiểm duyệt và dispute (UC-05, UC-13) | Trung bình | Chưa có luồng kháng nghị |
-| 13 | Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20) | Trung bình | Chưa có bảng hoặc luồng tiếp nhận, hạn phản hồi |
-| 14 | Hạn phân xử dispute (`deadline_at`) | Thấp | Đã lưu hạn nhưng chưa có cảnh báo khi quá hạn |
-| 15 | Giới hạn body 1 MB (§12.10) | Thấp | Mới cấu hình phía Tomcat. Chưa kiểm tra riêng cho JSON body |
-| 16 | Chuẩn hóa thông báo (notification) | Thấp | Tiêu đề và nội dung còn đơn giản, chưa có template theo sự kiện |
-| 17 | CI backend và frontend | Cao | Đã có git và repo GitHub (2026-10-29). Mới có CI cho iOS; chưa có CI build/test backend, frontend, quét phụ thuộc (§17.5) |
+| 1 | ~~Bộ lọc che dữ liệu nhạy cảm trong log (§16.1)~~ **Đã làm** | Cao | Mới che qua `toString()` của DTO và không log body. Chưa có lớp lọc thứ hai cho các khóa `password/token/secret/authorization` |
+| 2 | ~~Tách quyền user DB (§5.4 ghi chú, §14.3)~~ **Đã làm** | Cao | Chưa tạo `rentgg_app` không có quyền TRUNCATE/DROP và `rentgg_migrator` riêng cho migration |
+| 3 | ~~Swagger trên staging/prod (§11.1)~~ **Đã làm** | Cao | Đang mở công khai ở mọi profile. Cần tắt hoặc bắt xác thực |
+| 4 | Chạy thử Docker và Testcontainers | Cao | Dockerfile, compose và nhánh Testcontainers chưa chạy được: cloud không có Docker daemon. Chưa thay đổi trong 2026-11-21 |
+| 5 | ~~Re-auth khi xem credentials (D5)~~ **Đã làm (2026-11-21)** | Trung bình | Đã có cờ `rentgg.credentials.require-reauth` nhưng chưa dùng tới |
+| 6 | ~~Rate limit đăng nhập lũy tiến (§12.5)~~ **Đã làm (2026-11-21)** | Trung bình | Mới có giới hạn cố định 5/phút, 20/giờ. Chưa có thời gian chờ tăng dần sau nhiều lần sai |
+| 7 | ~~Tín hiệu lạm dụng khi vượt giới hạn xem credentials (UC-08)~~ **Đã làm (2026-11-21)** | Thấp | Hiện chỉ ghi audit `CREDENTIAL_VIEW_RATE_LIMITED`, chưa ghi `abuse_signals` |
+| 8 | ~~Metrics còn thiếu (§16.2)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có `rentgg_rotation_duration_seconds`, `rentgg_rotation_overdue_total`, `rentgg_deposits_by_status` (số lượng). `rentgg_orders_transition_total` chưa phủ mọi chuyển trạng thái |
+| 9 | ~~MDC `userId` / `orderId` trong log~~ **Đã làm (2026-11-21)** | Thấp | Đã có `traceId` và `requestPath`. Chưa gắn user và đơn |
+| 10 | ~~Cảnh báo khi outbox kẹt hoặc refund lỗi quá số lần~~ **Đã làm (2026-11-21)** | Trung bình | Mới ghi log ERROR và gauge. Chưa nối Alertmanager hay rule alert |
+| 11 | ~~Endpoint quản trị còn thiếu~~ **Đã làm (2026-11-21)** | Trung bình | Danh sách account chờ `verify-recovery`, danh sách user, tra cứu audit log |
+| 12 | ~~Kháng nghị quyết định kiểm duyệt và dispute (UC-05, UC-13)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có luồng kháng nghị |
+| 13 | ~~Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có bảng hoặc luồng tiếp nhận, hạn phản hồi |
+| 14 | ~~Hạn phân xử dispute (`deadline_at`)~~ **Đã làm (2026-11-21)** | Thấp | Đã lưu hạn nhưng chưa có cảnh báo khi quá hạn |
+| 15 | ~~Giới hạn body 1 MB (§12.10)~~ **Đã làm (2026-11-21)** | Thấp | Mới cấu hình phía Tomcat. Chưa kiểm tra riêng cho JSON body |
+| 16 | ~~Chuẩn hóa thông báo (notification)~~ **Đã làm (2026-11-21)** | Thấp | Tiêu đề và nội dung còn đơn giản, chưa có template theo sự kiện |
+| 17 | CI backend và frontend | Cao | **Một phần (2026-11-21):** đã có CI `backend.yml` (test backend trên Postgres 16) và `web.yml` (typecheck và build), cùng `ios.yml`. Chưa có quét phụ thuộc (§17.5) |
 
 ### 4.2. Phase 1 (theo lộ trình §19.1)
 
@@ -206,6 +214,7 @@ Các mục dưới đây chưa có trong code. Không phải việc bắt buộc
 
 ## 7. Nhật ký rà soát
 
+- **2026-11-21** — Hàng đợi cloud (`docs/RentGG_Cloud_Brief.md`): §3 mục 5–16 làm xong, mỗi mục một PR (PR #10–#21); §4.1 cập nhật theo đó. Thêm V30–V35. CI backend xanh trên đầu nhánh của chuỗi PR (xem `docs/RentGG_Dev_Guide.md` mục 17). Lỗi CI thật đã sửa: pool test quá lớn gây `too many clients` trên Postgres CI. iOS: không có lỗi để sửa (xem `RentGG_iOS_Status.md`). Android: khóa ký release đọc từ ngoài repo, chưa xác minh APK ký (cloud không tải được Android SDK).
 - **2026-10-29** — Đối chiếu tài liệu với code. Sửa: số migration (7 → 29), số lượng test, trạng thái PSP (đã có adapter), cổng dev theo `CLAUDE.md`, tình trạng Docker/CI, thêm các phần đã làm nhưng chưa được ghi.
 - Phát hiện đã có sẵn `forward-headers-strategy: native` và các màn Android (mục iOS). Báo cáo trước chưa ghi nhận.
 - Đã sửa cùng ngày: form khiếu nại trên web nay khớp quy tắc backend (`RentGG_Frontend_Status.md` mục 4.2 #10). Cập nhật theo đó mục 3: quy tắc "chỉ mở khi `IN_RENTAL`" áp dụng cho người thuê trên cả backend lẫn web.
