@@ -67,14 +67,14 @@ Lưu ý về nguồn tham khảo: trang zuhaowan.com là ứng dụng JavaScript
 |---|---|---|
 | 1 | Tìm kiếm và danh sách người dùng | Chỉ có `GET /admin/users/{id}`. Giao diện phải tra cứu bằng ID, đi từ liên kết trong đơn hoặc listing |
 | 2 | Danh sách account chờ xác minh khôi phục, danh sách KYC chờ duyệt | Backend chưa có endpoint liệt kê. Hiện xác minh khôi phục được từ màn kiểm duyệt listing |
-| 3 | Tra cứu nhật ký audit | Backend chưa có endpoint |
+| 3 | Tra cứu nhật ký audit | Backend có `GET /api/v1/admin/audit` (quyền `audit:read`). Giao diện chưa có |
 | 4 | Danh sách đơn cho support và admin | Chỉ xem được đơn khi biết ID. Backend `GET /orders` chỉ trả đơn của chính người gọi |
 | 5 | Xem account game của người khác | `GET /game-accounts/{id}` chỉ cho chủ sở hữu |
 | 6 | Ghi chú rủi ro của game (`riskNotes`) | `GET /games` không trả về trường này, nên sửa chính sách sẽ ghi đè bằng giá trị trống nếu không nhập lại |
 | 7 | Tải bằng chứng lên | Backend chỉ nhận link `https://`, chưa có upload (đã ghi trong tài liệu backend) |
 | 8 | Thanh toán thật | Backend đã có adapter PSP (MoMo, PayOS, VNPay, ZaloPay). Giao diện chỉ có nút "Giả lập thanh toán" khi chạy `npm run dev`. Cần kiểm tra luồng thanh toán thật trên sandbox |
-| 9 | Kháng nghị quyết định kiểm duyệt và phân xử (UC-05, UC-13) | Backend chưa có |
-| 10 | Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20) | Backend chưa có |
+| 9 | Kháng nghị quyết định kiểm duyệt và phân xử (UC-05, UC-13) | Backend có kháng nghị khiếu nại của chủ đơn (`POST /api/v1/disputes/{id}/appeal`). Giao diện chưa có. Kháng nghị kiểm duyệt listing (UC-05) chưa có |
+| 10 | Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20) | Backend có tiếp nhận cho nhân viên (`POST /api/v1/support/legal-notices`). Giao diện chưa có |
 | 11 | MFA cho staff, xác thực lại khi xem credentials (D5) | Backend chưa làm |
 | 12 | Tính năng Phase 1 trở đi | Chat, coupon, shop và tier, gia hạn đơn, chấm điểm uy tín, ảnh listing (UC-35) |
 

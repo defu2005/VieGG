@@ -77,9 +77,9 @@ Danh sách đầy đủ: `backend/src/main/resources/db/migration`. Không sửa
 | UC-11/27 | Khiếu nại thiệt hại, khấu trừ cọc | Xong | `OWNER_DAMAGE` trước `hold_until`. Khấu trừ tối đa bằng cọc của chính đơn đó |
 | UC-15/36/41 | Hold doanh thu, rút tiền | Xong | Hold 72h (168h nếu seller rủi ro cao). Rút tiền khóa hàng `FOR UPDATE`. Finance đánh dấu chi thủ công |
 | UC-17/33/40 | Hủy đơn | Xong | Renter hủy đúng hạn được hoàn 100%, hủy muộn hoàn 50%. Owner hủy hoàn 100% kèm tín hiệu `OWNER_LATE_CANCEL`. Cọc luôn hoàn ngay |
-| UC-20 | Thông báo nhà phát hành | Một phần | Có đổi `tos_status` và đình chỉ listing. Chưa có luồng tiếp nhận và lưu hồ sơ thông báo pháp lý |
+| UC-20 | Thông báo nhà phát hành | Một phần | Có đổi `tos_status` và đình chỉ listing. Có tiếp nhận và lưu hồ sơ thông báo pháp lý, có hạn phản hồi (`POST /api/v1/support/legal-notices`). Chưa có chuyển trạng thái và nhắc hạn |
 | UC-21 | Người chưa thành niên | Xong (MVP) | Chặn dưới 18 khi đăng ký và khi giao dịch, theo `min_age` của game |
-| UC-22 | Hỗ trợ, audit | Một phần | Có audit, tra cứu đơn và dispute cho Support. Chưa có màn hình tra cứu audit log |
+| UC-22 | Hỗ trợ, audit | Một phần | Có audit, tra cứu đơn và dispute cho Support. Có API tra cứu audit log (`GET /api/v1/admin/audit`). Chưa có màn hình |
 | UC-23 | Cấu hình game | Xong | `POST/PUT /admin/games`. Thay đổi chỉ áp dụng cho đơn mới |
 | UC-25 | Cọc bắt buộc | Xong | Đủ máy trạng thái §6.2. Mỗi đơn một cọc, không dùng lại |
 | UC-30/39 | Rotation mật khẩu | Xong | `ROTATION_PENDING` → `OVERDUE` (SLA 60'). Đơn kế tiếp bị hủy `OWNER_FAULT_NOT_READY` nếu chưa rotation |
@@ -137,23 +137,25 @@ TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test ./mvnw test
 
 | # | Hạng mục | Mức | Chi tiết |
 |---|---|---|---|
-| 1 | ~~Bộ lọc che dữ liệu nhạy cảm trong log (§16.1)~~ **Đã làm** | Cao | Mới che qua `toString()` của DTO và không log body. Chưa có lớp lọc thứ hai cho các khóa `password/token/secret/authorization` |
-| 2 | ~~Tách quyền user DB (§5.4 ghi chú, §14.3)~~ **Đã làm** | Cao | Chưa tạo `rentgg_app` không có quyền TRUNCATE/DROP và `rentgg_migrator` riêng cho migration |
-| 3 | ~~Swagger trên staging/prod (§11.1)~~ **Đã làm** | Cao | Đang mở công khai ở mọi profile. Cần tắt hoặc bắt xác thực |
+| 1 | ~~Bộ lọc che dữ liệu nhạy cảm trong log (§16.1)~~ **Đã làm** | Cao | Lớp lọc trong logback (`MaskingMessageConverter`, `MaskingThrowableConverter`, `SensitiveJsonValueMasker`) che khóa `password`, `token`, `secret`, `authorization`, `signature`, `key`. Có test cho text, JSON và stack trace (`LogbackConfigTest`, `SensitiveDataMaskerTest`) |
+| 2 | ~~Tách quyền user DB (§5.4 ghi chú, §14.3)~~ **Đã làm** | Cao | `deploy/db/roles.sql` tạo `rentgg_app` (DML, không DDL) và `rentgg_migrator` (chủ schema, chạy Flyway). Ứng dụng production dùng `rentgg_app`. `DbRolesIT` kiểm tra quyền |
+| 3 | ~~Swagger trên staging/prod (§11.1)~~ **Đã làm** | Cao | Tắt API docs trên staging và prod. Test: `ApiDocsDisabledTest`, `ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT` |
 | 4 | Chạy thử Docker và Testcontainers | Cao | Dockerfile, compose và nhánh Testcontainers chưa chạy được: cloud không có Docker daemon. Chưa thay đổi trong 2026-11-21 |
-| 5 | ~~Re-auth khi xem credentials (D5)~~ **Đã làm (2026-11-21)** | Trung bình | Đã có cờ `rentgg.credentials.require-reauth` nhưng chưa dùng tới |
-| 6 | ~~Rate limit đăng nhập lũy tiến (§12.5)~~ **Đã làm (2026-11-21)** | Trung bình | Mới có giới hạn cố định 5/phút, 20/giờ. Chưa có thời gian chờ tăng dần sau nhiều lần sai |
-| 7 | ~~Tín hiệu lạm dụng khi vượt giới hạn xem credentials (UC-08)~~ **Đã làm (2026-11-21)** | Thấp | Hiện chỉ ghi audit `CREDENTIAL_VIEW_RATE_LIMITED`, chưa ghi `abuse_signals` |
-| 8 | ~~Metrics còn thiếu (§16.2)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có `rentgg_rotation_duration_seconds`, `rentgg_rotation_overdue_total`, `rentgg_deposits_by_status` (số lượng). `rentgg_orders_transition_total` chưa phủ mọi chuyển trạng thái |
-| 9 | ~~MDC `userId` / `orderId` trong log~~ **Đã làm (2026-11-21)** | Thấp | Đã có `traceId` và `requestPath`. Chưa gắn user và đơn |
-| 10 | ~~Cảnh báo khi outbox kẹt hoặc refund lỗi quá số lần~~ **Đã làm (2026-11-21)** | Trung bình | Mới ghi log ERROR và gauge. Chưa nối Alertmanager hay rule alert |
-| 11 | ~~Endpoint quản trị còn thiếu~~ **Đã làm (2026-11-21)** | Trung bình | Danh sách account chờ `verify-recovery`, danh sách user, tra cứu audit log |
-| 12 | ~~Kháng nghị quyết định kiểm duyệt và dispute (UC-05, UC-13)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có luồng kháng nghị |
-| 13 | ~~Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20)~~ **Đã làm (2026-11-21)** | Trung bình | Chưa có bảng hoặc luồng tiếp nhận, hạn phản hồi |
-| 14 | ~~Hạn phân xử dispute (`deadline_at`)~~ **Đã làm (2026-11-21)** | Thấp | Đã lưu hạn nhưng chưa có cảnh báo khi quá hạn |
-| 15 | ~~Giới hạn body 1 MB (§12.10)~~ **Đã làm (2026-11-21)** | Thấp | Mới cấu hình phía Tomcat. Chưa kiểm tra riêng cho JSON body |
-| 16 | ~~Chuẩn hóa thông báo (notification)~~ **Đã làm (2026-11-21)** | Thấp | Tiêu đề và nội dung còn đơn giản, chưa có template theo sự kiện |
+| 5 | ~~Re-auth khi xem credentials (D5)~~ **Đã làm** | Trung bình | Cờ `rentgg.credentials.require-reauth` (mặc định tắt) có tác dụng: khi bật, GET trả 403 `REAUTH_REQUIRED`, POST cần mật khẩu, giới hạn 5 lượt/giờ. Web đã hỏi mật khẩu. iOS và Android chưa có bước này, nên cờ giữ tắt. Quyết định bật cờ vẫn là D5 |
+| 6 | ~~Rate limit đăng nhập lũy tiến (§12.5)~~ **Đã làm** | Trung bình | 5 lần sai đầu miễn phí, sau đó chờ 30 s nhân đôi tới tối đa 15 phút. Theo instance, trong bộ nhớ. Khi đầy, không xóa hết trạng thái (`LoginBackoffCapacityTest`) |
+| 7 | ~~Tín hiệu lạm dụng khi vượt giới hạn xem credentials (UC-08)~~ **Đã làm** | Thấp | Ghi `abuse_signals` khi vượt giới hạn xem hoặc giới hạn re-auth; tối đa một tín hiệu cho mỗi người/đơn/giờ (kiểm tra trước khi ghi, không nguyên tử) |
+| 8 | ~~Metrics còn thiếu (§16.2)~~ **Một phần** | Trung bình | Đã có `rentgg_rotation_overdue_total`, `rentgg_rotation_duration_seconds`, `rentgg_deposits_by_status`, và `rentgg_refunds_total{result=failed}`. Còn thiếu: `rentgg_orders_transition_total` chưa phủ mọi chuyển trạng thái |
+| 9 | ~~MDC `userId` / `orderId` trong log~~ **Một phần** | Thấp | Request HTTP có `userId` và `orderId` (interceptor sau xác thực). Job xử lý đơn chưa đặt `orderId` |
+| 10 | ~~Cảnh báo khi outbox kẹt hoặc refund lỗi quá số lần~~ **Một phần** | Trung bình | Có file rule `deploy/monitoring/rentgg-alerts.yml` (3 cảnh báo; `promtool check rules` đạt). Chưa nối vào Prometheus hay Alertmanager của triển khai |
+| 11 | ~~Endpoint quản trị còn thiếu~~ **Đã làm** | Trung bình | Hàng chờ `verify-recovery` (có sẵn), danh sách người dùng (có sẵn), tra cứu audit `GET /api/v1/admin/audit` (mới, quyền `audit:read`). Chưa có giao diện |
+| 12 | ~~Kháng nghị quyết định kiểm duyệt và dispute (UC-05, UC-13)~~ **Một phần** | Trung bình | Đã có kháng nghị khiếu nại của chủ đơn: một lần cho mỗi chủ trên mỗi khiếu nại, trong 7 ngày (V33). Chưa có kháng nghị kiểm duyệt listing (UC-05). Chưa có bước xét kháng nghị |
+| 13 | ~~Hồ sơ thông báo pháp lý từ nhà phát hành (UC-20)~~ **Một phần** | Trung bình | Đã có tiếp nhận và lưu hồ sơ, hạn phản hồi 30 ngày (V34; con số này là lựa chọn của dự án, cần pháp lý xác nhận). Chưa có chuyển trạng thái và nhắc hạn |
+| 14 | ~~Hạn phân xử dispute (`deadline_at`)~~ **Đã làm** | Thấp | Job đánh dấu khiếu nại `OPEN` quá `deadline_at`, một lần (V35), ghi outbox. Chưa có thông báo nhắc cho người dùng |
+| 15 | ~~Giới hạn body 1 MB (§12.10)~~ **Đã làm** | Thấp | `JsonBodyLimitFilter`: body JSON trên 1 MB trả 413 trước controller. Multipart không bị giới hạn này |
+| 16 | ~~Chuẩn hóa thông báo (notification)~~ **Đã làm** | Thấp | 41 sự kiện có tiêu đề và nội dung riêng. Nội dung là câu tĩnh, chưa có biến theo đơn |
 | 17 | CI backend và frontend | Cao | **Một phần (2026-11-21):** đã có CI `backend.yml` (test backend trên Postgres 16) và `web.yml` (typecheck và build), cùng `ios.yml`. Chưa có quét phụ thuộc (§17.5) |
+
+**Ghi chú PSP (brief hàng 6, tham chiếu §4.1 của Dev Guide):** contract test với MockWebServer cho PayOS, MoMo, ZaloPay, VNPay đã có: tạo thanh toán, webhook hợp lệ, sai chữ ký, phát lại, hoàn tiền, timeout và 5xx ([M]). Chưa có sandbox thật ([S]).
 
 ### 4.2. Phase 1 (theo lộ trình §19.1)
 
@@ -201,10 +203,10 @@ Các mục dưới đây chưa có trong code. Không phải việc bắt buộc
 |---|---|---|
 | Nhiều instance backend | `RateLimiter` và cache quyền (`AuthorityService`) lưu trong bộ nhớ từng máy. ShedLock đã bảo đảm job chạy một lần | Khi chạy từ 2 instance: chuyển rate limit sang Redis |
 | Lưu file (ảnh, bằng chứng khiếu nại, đính kèm helpdesk) | Lưu `bytea` trong PostgreSQL (V2, V9, V13, V28) | Khi DB và backup phình to: chuyển sang S3/R2, DB chỉ giữ khóa đối tượng |
-| Quan sát hệ thống | Metrics còn thiếu, chưa có tracing (OpenTelemetry), chưa nối Alertmanager | Trước production (mục 4.1 #8, #10) |
+| Quan sát hệ thống | Còn thiếu `rentgg_orders_transition_total` đầy đủ, chưa có tracing (OpenTelemetry), file rule alert chưa nối Alertmanager | Trước production (mục 4.1 #8, #10) |
 | Xác thực hai lớp cho staff | Chưa có MFA (TOTP) cho SUPPORT, ADMIN, FINANCE | Trước khi cấp nhiều tài khoản staff |
 | Uy tín và đánh giá chủ account | Chỉ có `abuse_signals`, chưa có điểm, đánh giá, số lượt thuê (UC-14) | Trước khi mở rộng số chủ account |
-| Kháng nghị và hồ sơ pháp lý | Chưa có (UC-05, UC-13, UC-20) | UC-20 cần trước khi có tranh chấp với nhà phát hành |
+| Kháng nghị và hồ sơ pháp lý | Có kháng nghị khiếu nại (V33) và tiếp nhận hồ sơ UC-20 (V34). Chưa có kháng nghị kiểm duyệt listing (UC-05), chưa xét kháng nghị, chưa chuyển trạng thái hồ sơ UC-20 | UC-20 cần trước khi có tranh chấp với nhà phát hành |
 | Thông báo thời gian thực | Chuông và số chưa đọc phải tải lại trang | Khi có nhiều người dùng: SSE hoặc WebSocket |
 | Đa PSP và đối soát tự động | Có adapter nhưng chưa chọn/cấu hình; đối soát chỉ chạy bằng endpoint khi cần | Khi chạy thật nhiều kênh thu tiền: chọn PSP theo game, job đối soát định kỳ |
 | Tính năng thương mại | Chat, coupon, shop/tier (UC-16, UC-31, UC-32) | Theo lộ trình Phase 1 (§19.1) |
@@ -214,7 +216,7 @@ Các mục dưới đây chưa có trong code. Không phải việc bắt buộc
 
 ## 7. Nhật ký rà soát
 
-- **2026-11-21** — Hàng đợi cloud (`docs/RentGG_Cloud_Brief.md`): §3 mục 5–16 làm xong, mỗi mục một PR (PR #10–#21); §4.1 cập nhật theo đó. Thêm V30–V35. CI backend xanh trên đầu nhánh của chuỗi PR (xem `docs/RentGG_Dev_Guide.md` mục 17). Lỗi CI thật đã sửa: pool test quá lớn gây `too many clients` trên Postgres CI. iOS: không có lỗi để sửa (xem `RentGG_iOS_Status.md`). Android: khóa ký release đọc từ ngoài repo, chưa xác minh APK ký (cloud không tải được Android SDK).
+- **2026-11-21** — Hàng đợi cloud (`docs/RentGG_Cloud_Brief.md`): §3 mục 5–16 làm xong, mỗi mục một PR (PR #10–#21); §4.1 cập nhật theo đó. Thêm V30–V35. PR #10–#21 ứng với hàng 9–20 của brief; #22–#24 ứng với hàng 22–24. CI backend xanh trên đầu nhánh của chuỗi PR (xem `docs/RentGG_Dev_Guide.md` mục 1.2). Lỗi CI thật đã sửa: pool test quá lớn gây `too many clients` trên Postgres CI. iOS: không có lỗi để sửa (xem `RentGG_iOS_Status.md`). Android: khóa ký release đọc từ ngoài repo, chưa xác minh APK ký (cloud không tải được Android SDK).
 - **2026-10-29** — Đối chiếu tài liệu với code. Sửa: số migration (7 → 29), số lượng test, trạng thái PSP (đã có adapter), cổng dev theo `CLAUDE.md`, tình trạng Docker/CI, thêm các phần đã làm nhưng chưa được ghi.
 - Phát hiện đã có sẵn `forward-headers-strategy: native` và các màn Android (mục iOS). Báo cáo trước chưa ghi nhận.
 - Đã sửa cùng ngày: form khiếu nại trên web nay khớp quy tắc backend (`RentGG_Frontend_Status.md` mục 4.2 #10). Cập nhật theo đó mục 3: quy tắc "chỉ mở khi `IN_RENTAL`" áp dụng cho người thuê trên cả backend lẫn web.

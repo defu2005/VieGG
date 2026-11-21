@@ -57,6 +57,8 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
   - Local, cùng commit đầu: 2 fail trên 5 lần chạy `MoneyAndApprovalIT` (gồm 1 baseline pass, 1 full suite fail, 3 lần chạy lại: 2 pass, 1 fail).
 - **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
 
+- **Kiểm tra CI (2026-11-21, hàng 21 của brief; nhánh `claude/row-20-notification-templates` và các nhánh xếp chồng): ĐÃ KIỂM TRA.** CI trên từng đầu nhánh của chuỗi PR #12 đến #21 (`claude/row-12-*` đến `claude/row-20-*`): đầu nhánh có lần chạy Backend và Web xanh (Backend xanh ở row 12, 14, 15, 16, 18, 19, 20; row 13, 17 có một lần đỏ rồi xanh trên cùng commit). Lỗi đỏ gặp phải và nguyên nhân: (a) "Fetch Maven wrapper": `wget` tới repo.maven.apache.org bị lỗi tải, lỗi hạ tầng của runner, không phải code; chạy lại thì xanh. (b) `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`: deadlock đã biết (PR #3, task `task_0d67c9db`), không liên quan tới hàng này. Lỗi thật đã sửa: từ row 14 CI báo `FATAL: sorry, too many clients already` do mỗi context test giữ pool Hikari 30 kết nối và các lớp `@AutoConfigureObservability` làm thêm context. Sửa: `application-test.yml` pool tối đa 8, tối thiểu rảnh 2; hai lớp observability có `@DirtiesContext(AFTER_CLASS)`. Đo cục bộ đỉnh 12 kết nối (`max_connections` 100). Sửa được merge xuôi từ row 12 đến row 20. Chưa xác minh: CI thật của `ios.yml` và `android` (mục 22, 23); xem các mục đó.
+
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
 Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là một checklist:
 
@@ -210,13 +212,9 @@ Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1
 
 - **Kết quả mục 16 (2026-11-21, nhánh `claude/row-20-notification-templates`): ĐÃ LÀM `[M]`.** Trước đây mọi sự kiện có nội dung bằng chính tiêu đề. Nay `notification/application/NotificationTemplates` giữ tiêu đề và nội dung riêng cho cả 41 sự kiện; tiêu đề giữ nguyên từng chữ so với bản cũ (đã kiểm tra bằng diff). Sự kiện hỗ trợ vẫn dùng tiêu đề và nội dung là tiêu đề của tin nhắn. Test: `NotificationTemplatesTest` (2): 41 sự kiện, mỗi sự kiện có tiêu đề, nội dung không rỗng, không trùng tiêu đề, dài ít nhất 30 ký tự, và nội dung không trùng giữa các sự kiện; sự kiện lạ không có mẫu. Điều khiển sao chép tiêu đề vào một nội dung làm test fail. Nội dung là câu tĩnh, chưa có biến theo đơn. Full suite: 325 test, 0 fail, 0 lỗi, 0 bỏ qua.
 
-- **Kết quả mục 17 (2026-11-21, nhánh `claude/row-20-notification-templates`): ĐÃ KIỂM TRA.** CI trên từng đầu nhánh của chuỗi PR #12 đến #21 (`claude/row-12-*` đến `claude/row-20-*`): đầu nhánh có lần chạy Backend và Web xanh (Backend xanh ở row 12, 14, 15, 16, 18, 19, 20; row 13, 17 có một lần đỏ rồi xanh trên cùng commit). Lỗi đỏ gặp phải và nguyên nhân: (a) "Fetch Maven wrapper": `wget` tới repo.maven.apache.org bị lỗi tải, lỗi hạ tầng của runner, không phải code; chạy lại thì xanh. (b) `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`: deadlock đã biết (PR #3, task `task_0d67c9db`), không liên quan tới hàng này. Lỗi thật đã sửa: từ row 14 CI báo `FATAL: sorry, too many clients already` do mỗi context test giữ pool Hikari 30 kết nối và các lớp `@AutoConfigureObservability` làm thêm context. Sửa: `application-test.yml` pool tối đa 8, tối thiểu rảnh 2; hai lớp observability có `@DirtiesContext(AFTER_CLASS)`. Đo cục bộ đỉnh 12 kết nối (`max_connections` 100). Sửa được merge xuôi từ row 12 đến row 20. Chưa xác minh: CI thật của `ios.yml` và `android` (mục 22, 23); xem các mục đó.
 
-- **Kết quả §6.1 (2026-11-21, nhánh `claude/row-22-ios-ci`): KHÔNG XÁC MINH ĐƯỢC, không có lỗi để sửa.** Lịch sử `ios.yml` trên GitHub chỉ có một lần chạy: nhánh `main`, 2026-10-29, kết quả **xanh**, mọi bước (test `RentGGCore`, XcodeGen, build cho Simulator) đều thành công. Không có lần chạy nào trên nhánh này vì `ios.yml` chỉ chạy khi đổi `ios/**`. Không có log đỏ để chẩn đoán, và cloud không có macOS hay Xcode để tái hiện, nên chưa sửa gì trong `ios.yml`. Để xác nhận: đẩy một thay đổi nhỏ trong `ios/**` hoặc chạy `workflow_dispatch` và xem kết quả.
 
-- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ LÀM CODE, CHƯA XÁC MINH BẢN KÝ.** `android/app/build.gradle.kts` đọc `RENTGG_KEYSTORE_PATH`, `RENTGG_KEYSTORE_PASSWORD`, `RENTGG_KEY_ALIAS`, `RENTGG_KEY_PASSWORD` từ biến môi trường hoặc `~/.gradle/gradle.properties` (ngoài repo). Có path mà thiếu biến khác thì build dừng với thông báo rõ. Không có path thì bản release không ký (unsigned). `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties` (`*.jks` đã có sẵn). **Chưa chạy được `./gradlew assembleRelease`** trong cloud: `dl.google.com` bị proxy chặn (403), Maven Central trả 429 cho plugin AGP 8.7.3, nên không tải được plugin Android và không có Android SDK. Vì vậy chưa xác minh được APK ký, cũng chưa xác minh nhánh unsigned. Cần chạy trên máy có SDK, hoặc trong CI có quyền tải SDK, để xác nhận.
 
-- **Kết quả §7 (2026-11-21, nhánh `claude/row-24-status-docs`): ĐÃ LÀM.** Cập nhật `RentGG_Implementation_Status.md` (35 migration V1–V35, CI backend và web đã có, §4.1 đánh dấu mục đã làm), `RentGG_Frontend_Status.md` (ngày rà soát, CI web) và `RentGG_iOS_Status.md` (kết quả ios.yml, Android). Mỗi file có ngày cập nhật. Đối chiếu với `git log` của các nhánh `claude/row-*`. Mục còn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 
 ## 4. Tích hợp bên ngoài (làm bằng mock trước)
 
@@ -298,10 +296,14 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 - **Xong khi:** `ios.yml` xanh.
 - **Kiểm thử:** CI. Chạy trên Simulator thủ công cần máy Mac, để sau.
 
+- **Kết quả §6.1 (2026-11-21, nhánh `claude/row-22-ios-ci`): XANH, không cần sửa.** Lịch sử `ios.yml` trước đó chỉ có một lần chạy (nhánh `main`, 2026-10-29, xanh). Hôm nay chạy thủ công bằng `workflow_dispatch` trên nhánh `claude/row-22-ios-ci`: **run `44870630578`, xanh**, job `build` thành công, không bước nào đỏ (test `RentGGCore`, XcodeGen, build cho Simulator). Không có log đỏ để chẩn đoán, nên không có lỗi nào được sửa. Không đổi `ios.yml`.
+
 ### 6.2 Android: ký bản release từ biến môi trường
 - **Làm gì:** đọc keystore path, alias, mật khẩu từ biến môi trường hoặc `~/.gradle/gradle.properties` trên máy (ngoài repo). `android/gradle.properties` **được commit** trong repo, chỉ chứa cấu hình build, không đặt khóa ký vào đó; không đưa khóa vào `build.gradle.kts`.
 - **Xong khi:** `./gradlew assembleRelease` tạo APK đã ký khi có biến; khi thiếu, rơi về bản unsigned như hiện tại.
 - **Kiểm thử:** `[M]` (build). Keystore thật là `[S]`.
+
+- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ LÀM CODE, CHƯA XÁC MINH BẢN KÝ.** `android/app/build.gradle.kts` đọc `RENTGG_KEYSTORE_PATH`, `RENTGG_KEYSTORE_PASSWORD`, `RENTGG_KEY_ALIAS`, `RENTGG_KEY_PASSWORD` từ biến môi trường hoặc `~/.gradle/gradle.properties` (ngoài repo). Có path mà thiếu biến khác thì build dừng với thông báo rõ. Không có path thì bản release không ký (unsigned). `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties` (`*.jks` đã có sẵn). **Chưa chạy được `./gradlew assembleRelease`** trong cloud: `dl.google.com` bị proxy chặn (403), Maven Central trả 429 cho plugin AGP 8.7.3, nên không tải được plugin Android và không có Android SDK. Vì vậy chưa xác minh được APK ký, cũng chưa xác minh nhánh unsigned. Cần chạy trên máy có SDK, hoặc trong CI có quyền tải SDK, để xác nhận.
 
 ### 6.3 Android: E2E trên emulator hoặc điện thoại thật
 - **Hiện trạng:** `android/PROGRESS.md` ghi máy báo `VirtualizationFirmwareEnabled = False`. Trạng thái này **chưa xác minh lại** hôm nay.
@@ -321,6 +323,8 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 - **Kiểm thử:** đọc lại; đối chiếu với `git log`.
 
 ---
+
+- **Kết quả §7 (2026-11-21, nhánh `claude/row-24-status-docs`): ĐÃ LÀM.** Cập nhật `RentGG_Implementation_Status.md` (35 migration V1–V35, CI backend và web đã có, §4.1 đánh dấu mục đã làm), `RentGG_Frontend_Status.md` (ngày rà soát, CI web) và `RentGG_iOS_Status.md` (kết quả ios.yml, Android). Mỗi file có ngày cập nhật. Đối chiếu với `git log` của các nhánh `claude/row-*`. Mục còn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 
 ## Phụ lục A — Giá trị cần điền khi bạn đăng ký xong
 
