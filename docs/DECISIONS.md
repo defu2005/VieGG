@@ -103,7 +103,7 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 ### D-17: Module `legal` ở hạng 1 trong `ArchitectureTest.RANK` (ACTIVE)
 
 - `legal` có `api` và `application`, không có `domain` và `infrastructure`.
-- Lý do chọn hạng 1: `legal` chỉ import `audit` và `shared`, và chỉ `jobs` (hạng 7) import nó. Commit `90a9947`, `ArchitectureTest` pass.
+- Lý do chọn hạng 1: `legal` chỉ import `audit` và `shared`, và chỉ `jobs` (hạng 7) import nó. Kiểm tra 2026-11-21: `./mvnw -B test -Dtest=ArchitectureTest` pass.
 - Hệ quả: `legal` không được import `identity` hay `order` nếu không đổi hạng. Muốn đổi thì cần sửa `RANK` và ghi mục mới ở đây.
 
 ### D-18: `settings`, `helpdesk`, `legal` không có trong bảng module của System Design (OPEN)

@@ -35,7 +35,7 @@ Cột **Hạng** là thứ tự tầng trong `ArchitectureTest.RANK` (`backend/s
 
 Ghi chú về bảng:
 
-- **`legal`** có hạng 1 trong `ArchitectureTest.RANK` (từ commit `90a9947`). Nó chỉ import `audit` và `shared`. Nó không có `domain/` và `infrastructure/`. Xem [DECISIONS.md](DECISIONS.md) (D-17).
+- **`legal`** có hạng 1 trong `ArchitectureTest.RANK` (kiểm tra 2026-11-21). Nó chỉ import `audit` và `shared`. Nó không có `domain/` và `infrastructure/`. Xem [DECISIONS.md](DECISIONS.md) (D-17).
 - **`settings`**, **`helpdesk`** và **`legal`** không có trong bảng module của System Design v1.2 (`docs/RentGG_System_Design_v1.2.md` §4.3). Bảng này mô tả theo code.
 - **`deposit`** không có controller. Cọc được tạo và trả qua `order`, số dư qua `wallet`.
 - **`jobs`** có `DevController`, `DevTimeController` và `DevDataSeeder` chỉ chạy ở profile `dev` (xem [ARCHITECTURE.md](ARCHITECTURE.md#cấu-hình-và-profile)).

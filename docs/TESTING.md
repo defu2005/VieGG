@@ -1,6 +1,6 @@
 # Kiểm thử
 
-Ngày kiểm tra **2026-11-21**. Số liệu đếm từ file trong repo; số lần test pass không ghi ở đây, vì cần chạy lại để có con số hiện tại.
+Ngày kiểm tra **2026-11-21**. Kết quả chạy thật: `./mvnw -B test` trên PostgreSQL 16.15 (`rentgg_test`, user `rentgg`) → **340 test, 0 lỗi, 0 bỏ qua, BUILD SUCCESS** (62 lớp test). Chạy lại để có con số mới.
 
 ## Tổng quan
 
@@ -106,4 +106,4 @@ Web không có test đơn vị tự động (UNKNOWN: chưa tìm thấy script t
 - Android chỉ có một file test (`ApiClientTest.kt`) và không chạy trong CI.
 - Chưa có test trên thiết bị hoặc simulator thật cho luồng mobile.
 - Luồng thanh toán với sandbox PSP thật: chưa có bằng chứng (xem [DECISIONS.md](DECISIONS.md)).
-- Số test pass hiện tại: chưa đo lại trong tài liệu này. Chạy `./mvnw -B test` để có số.
+- Số test pass ở trên là một lần chạy (2026-11-21). Chạy `./mvnw -B test` để có số mới.
