@@ -34,6 +34,8 @@ public class Dispute {
     @Column(name = "evidence_urls", columnDefinition = "jsonb")
     private List<Map<String, Object>> evidence = new ArrayList<>();
     private Instant deadlineAt;
+    /** Set once by the overdue job when the dispute is still OPEN after deadline_at. */
+    private Instant deadlineOverdueAt;
     private long depositDeduction;
     private long rentRefund;
     /** OWNER_RISK / RENTER_RISK: the risk of the order snapshot this dispute is about. */
@@ -117,6 +119,17 @@ public class Dispute {
     public String getDescription() { return description; }
     public List<Map<String, Object>> getEvidence() { return evidence; }
     public Instant getDeadlineAt() { return deadlineAt; }
+    public Instant getDeadlineOverdueAt() { return deadlineOverdueAt; }
+
+    /** Idempotent: the first call sets the time, later calls change nothing. */
+    public boolean markDeadlineOverdue(Instant now) {
+        if (status != DisputeStatus.OPEN || deadlineOverdueAt != null) {
+            return false;
+        }
+        this.deadlineOverdueAt = now;
+        this.updatedAt = now;
+        return true;
+    }
     public long getDepositDeduction() { return depositDeduction; }
     public long getRentRefund() { return rentRefund; }
     public UUID getRiskId() { return riskId; }

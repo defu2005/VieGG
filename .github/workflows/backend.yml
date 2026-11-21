@@ -3,9 +3,9 @@ name: Backend
 
 on:
   push:
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "deploy/db/**", ".github/workflows/backend.yml"]
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "deploy/db/**", ".github/workflows/backend.yml"]
   workflow_dispatch:
 
 jobs:
@@ -33,6 +33,11 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      # Tải Maven wrapper hay bị lỗi mạng (wget tới repo.maven.apache.org): thử lại tối đa 3 lần trước khi test.
+      - name: Fetch Maven wrapper
+        run: |
+          for i in 1 2 3; do ./mvnw -v && exit 0; echo "wrapper fetch attempt $i failed"; sleep 15; done
+          exit 1
       - name: Test
         env:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/rentgg_test

@@ -28,6 +28,7 @@ import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.media.MediaStore;
 import com.rentgg.shared.outbox.OutboxService;
 import com.rentgg.shared.security.AuthorityResolver;
+import com.rentgg.shared.security.CurrentUser;
 import com.rentgg.shared.security.Permission;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -471,7 +472,11 @@ public class HelpdeskService {
 
     // ================================================================= helpers
 
+    /** The caller's own staff rights come from the access token, so an unverified staff session has none. */
     private boolean isStaff(UUID userId) {
+        if (CurrentUser.optionalId().filter(userId::equals).isPresent()) {
+            return CurrentUser.has(Permission.HELPDESK_HANDLE);
+        }
         return authorities.resolve(userId).permissions().contains(Permission.HELPDESK_HANDLE.code());
     }
 

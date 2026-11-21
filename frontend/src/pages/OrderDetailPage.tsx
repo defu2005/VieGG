@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { api, newIdempotencyKey } from '../api/client';
+import { api, ApiError, newIdempotencyKey } from '../api/client';
 import type { Credentials, GameView, OrderDetail, PayResponse } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { Countdown } from '../components/Countdown';
@@ -35,6 +35,9 @@ export function OrderDetailPage() {
   );
   const [busy, setBusy] = useState(false);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
+  // D5: the server asked for the RentGG password again before showing credentials (REAUTH_REQUIRED).
+  const [reauthNeeded, setReauthNeeded] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
   const [otpNote, setOtpNote] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -100,8 +103,30 @@ export function OrderDetailPage() {
 
   const onViewCredentials = () =>
     run(async () => {
-      setCredentials(await api<Credentials>(`/orders/${id}/credentials`));
+      try {
+        setCredentials(await api<Credentials>(`/orders/${id}/credentials`));
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'REAUTH_REQUIRED') {
+          setReauthNeeded(true);
+          return;
+        }
+        throw err;
+      }
     });
+
+  const onConfirmReauth = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      setCredentials(
+        await api<Credentials>(`/orders/${id}/credentials`, {
+          method: 'POST',
+          body: { password: reauthPassword },
+        }),
+      );
+      setReauthPassword('');
+      setReauthNeeded(false);
+    });
+  };
 
   const onRequestOtp = () => run(() => api(`/orders/${id}/otp-request`, { method: 'POST' }), 'Đã gửi yêu cầu OTP.');
 
@@ -279,7 +304,23 @@ export function OrderDetailPage() {
         <section id="credentials" className="card stack">
           <h2>Thông tin đăng nhập</h2>
           <p className="muted">Chỉ xem được trong khung giờ thuê. Mỗi lần xem đều được ghi nhật ký.</p>
-          {!credentials ? (
+          {!credentials && reauthNeeded ? (
+            <form className="form" onSubmit={onConfirmReauth}>
+              <p className="muted">Nhập lại mật khẩu RentGG để xem thông tin đăng nhập.</p>
+              <div className="field">
+                <label htmlFor="reauthPassword">Mật khẩu RentGG</label>
+                <input
+                  id="reauthPassword"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={reauthPassword}
+                  onChange={(e) => setReauthPassword(e.target.value)}
+                />
+              </div>
+              <button className="btn btn-primary" disabled={busy}>Xác nhận</button>
+            </form>
+          ) : !credentials ? (
             <button className="btn" disabled={busy} onClick={onViewCredentials}>
               Xem thông tin đăng nhập
             </button>

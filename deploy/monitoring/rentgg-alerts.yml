@@ -1,0 +1,33 @@
+# Prometheus alert rules for RentGG (Dev Guide §3 mục 10).
+# Check syntax: promtool check rules deploy/monitoring/rentgg-alerts.yml
+# Metrics come from /actuator/prometheus (backend/src/main/java/com/rentgg/jobs/BusinessMetrics.java, PaymentService).
+# Counters of refund failures are per backend instance: they reset on restart.
+groups:
+  - name: rentgg-outbox-refunds
+    rules:
+      - alert: RentggOutboxStuck
+        expr: max(rentgg_outbox_oldest_age_seconds) > 900
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox có sự kiện chờ quá 15 phút"
+          description: "Sự kiện cũ nhất trong outbox đã chờ {{ $value }} giây. Kiểm tra job outbox và log lỗi."
+
+      - alert: RentggOutboxBacklog
+        expr: max(rentgg_outbox_pending) > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox tồn đọng quá 500 sự kiện"
+          description: "Còn {{ $value }} sự kiện chưa xử lý trong outbox."
+
+      - alert: RentggRefundRetryFailing
+        expr: sum(increase(rentgg_refunds_total{result="failed"}[15m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Hoàn tiền thử lại bị lỗi"
+          description: "Có lần thử hoàn tiền thất bại trong 15 phút qua. Xem refund ở trạng thái FAILED và log cảnh báo 'Refund retry'."

@@ -126,7 +126,8 @@ public abstract class IntegrationTest {
 
     protected String bearer(UUID userId) {
         UserView u = users.get(userId);
-        return "Bearer " + jwt.issueAccessToken(userId, u.roles(), u.status().name()).value();
+        // Test tokens carry a passed second factor, so staff tests exercise permissions, not the MFA gate.
+        return "Bearer " + jwt.issueAccessToken(userId, u.roles(), u.status().name(), true).value();
     }
 
     protected UUID game(UnaryOperator<GamePolicy> customize) {

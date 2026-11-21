@@ -13,6 +13,8 @@ import com.rentgg.order.domain.OrderStatus;
 import com.rentgg.order.infrastructure.OrderRepository;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.outbox.OutboxService;
+import com.rentgg.identity.application.AbuseSignalService;
+import com.rentgg.identity.application.AuthService;
 import com.rentgg.shared.ratelimit.RateLimiter;
 import com.rentgg.shared.ratelimit.RateLimiter.Limit;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -38,10 +40,14 @@ public class HandoverService {
     private final MeterRegistry meters;
     private final RentGgProperties props;
     private final Clock clock;
+    private final AuthService auth;
+    private final AbuseSignalService abuse;
 
     public HandoverService(OrderRepository orders, GameAccountService gameAccounts, UserService users,
                            RateLimiter rateLimiter, AuditService audit, OutboxService outbox, MeterRegistry meters,
-                           RentGgProperties props, Clock clock) {
+                           RentGgProperties props, Clock clock, AuthService auth, AbuseSignalService abuse) {
+        this.auth = auth;
+        this.abuse = abuse;
         this.orders = orders;
         this.gameAccounts = gameAccounts;
         this.users = users;
@@ -67,6 +73,29 @@ public class HandoverService {
      */
     @Transactional(noRollbackFor = ApiException.class)
     public CredentialsResponse viewCredentials(UUID callerId, UUID orderId) {
+        return view(callerId, orderId, null);
+    }
+
+    /**
+     * D5 (System Design §18, {@code rentgg.credentials.require-reauth}): when the flag is on, the renter must
+     * re-enter the RentGG password. Each attempt, right or wrong, uses one of five per hour for this user.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public CredentialsResponse viewCredentialsWithPassword(UUID callerId, UUID orderId, String password) {
+        return view(callerId, orderId, password);
+    }
+
+    /**
+     * Abuse signal for a limit being hit: at most one per user and order per hour, so a loop of attempts leaves one
+     * row. Recorded in the caller's transaction, which does not roll back on ApiException (see the annotation above).
+     */
+    private void signalOncePerHour(UUID userId, String type, UUID orderId, Instant now) {
+        if (!abuse.existsSince(userId, type, orderId, now.minus(Duration.ofHours(1)))) {
+            abuse.record(userId, type, orderId, null);
+        }
+    }
+
+    private CredentialsResponse view(UUID callerId, UUID orderId, String password) {
         Order o = orders.findForUpdate(orderId).orElse(null);
         if (o == null || !o.getRenterId().equals(callerId)) {
             audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId, Map.of("reason", "NOT_RENTER"), null);
@@ -83,10 +112,31 @@ public class HandoverService {
                     Map.of("reason", "WINDOW_CLOSED", "status", o.getStatus().name()), null);
             throw ApiException.unprocessable("CREDENTIAL_WINDOW_CLOSED", "Chỉ xem được thông tin đăng nhập trong thời gian thuê.");
         }
+        if (props.credentials().requireReauth()) {
+            if (password == null) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "REAUTH_REQUIRED"), null);
+                throw ApiException.forbidden("REAUTH_REQUIRED", "Nhập lại mật khẩu RentGG để xem thông tin đăng nhập.");
+            }
+            try {
+                rateLimiter.consume("reauth:" + callerId, Limit.perHour(5));
+            } catch (ApiException e) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "REAUTH_RATE_LIMITED"), null);
+                signalOncePerHour(callerId, "CREDENTIAL_VIEW_REAUTH_RATE_LIMITED", orderId, now);
+                throw e;
+            }
+            if (!auth.passwordMatches(callerId, password)) {
+                audit.recordIndependent(callerId, "CREDENTIAL_VIEW_DENIED", "Order", orderId,
+                        Map.of("reason", "WRONG_PASSWORD"), null);
+                throw ApiException.forbidden("REAUTH_FAILED", "Mật khẩu không đúng.");
+            }
+        }
         try {
             rateLimiter.consume("credentials:" + orderId, Limit.perHour(props.credentials().rateLimitPerHour()));
         } catch (ApiException e) {
             audit.recordIndependent(callerId, "CREDENTIAL_VIEW_RATE_LIMITED", "Order", orderId, null, null);
+            signalOncePerHour(callerId, "CREDENTIAL_VIEW_RATE_LIMITED", orderId, now);
             throw e;
         }
         DecryptedCredentials creds = gameAccounts.decryptActive(o.getGameAccountId());

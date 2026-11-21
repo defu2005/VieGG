@@ -12,6 +12,8 @@ import com.rentgg.payment.application.PaymentService;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.outbox.DomainEvent;
 import com.rentgg.shared.outbox.OutboxService;
+import com.rentgg.shared.web.RequestLogContext;
+import org.slf4j.MDC;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -158,19 +160,24 @@ public class DepositService {
     public int releaseDue(int batchSize) {
         int n = 0;
         for (UUID id : deposits.findReleasable(clock.instant(), batchSize)) {
-            Boolean done = tx.execute(s -> deposits.lockForJob(id).map(d -> {
-                if (d.getStatus() != POST_RENTAL_HOLD || d.getHoldUntil().isAfter(clock.instant())) {
-                    return false;
-                }
-                requestRefund(d, d.remaining(), "deposit-release:" + d.getId(), null);
-                move(d, REFUND_PENDING);
-                return true;
-            }).orElse(false));
+            Boolean done = tx.execute(s -> deposits.lockForJob(id).map(this::releaseOne).orElse(false));
             if (Boolean.TRUE.equals(done)) {
                 n++;
             }
         }
         return n;
+    }
+
+    private boolean releaseOne(Deposit d) {
+        // The log of this step carries the order the deposit belongs to.
+        try (MDC.MDCCloseable ignored = MDC.putCloseable(RequestLogContext.ORDER_ID, d.getOrderId().toString())) {
+            if (d.getStatus() != POST_RENTAL_HOLD || d.getHoldUntil().isAfter(clock.instant())) {
+                return false;
+            }
+            requestRefund(d, d.remaining(), "deposit-release:" + d.getId(), null);
+            move(d, REFUND_PENDING);
+            return true;
+        }
     }
 
     /** RefundCompleted (kind DEPOSIT) → REFUNDED when the deposit is waiting for it. */

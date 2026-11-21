@@ -156,6 +156,25 @@ public class OrderController {
                 .body(body);
     }
 
+    /** D5: with rentgg.credentials.require-reauth the renter sends the RentGG password here. */
+    public record ReauthRequest(@NotBlank String password) {
+        @Override
+        public String toString() {
+            return "ReauthRequest[password=***]";
+        }
+    }
+
+    @PostMapping("/{id}/credentials")
+    @PreAuthorize("hasAuthority('credential:view_own')")
+    public ResponseEntity<HandoverService.CredentialsResponse> credentialsWithPassword(@PathVariable UUID id,
+                                                                                      @Valid @RequestBody ReauthRequest req) {
+        HandoverService.CredentialsResponse body = handover.viewCredentialsWithPassword(CurrentUser.id(), id, req.password());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("Pragma", "no-cache")
+                .body(body);
+    }
+
     @PostMapping("/{id}/handover/confirm")
     @PreAuthorize("hasAuthority('order:manage_own')")
     public Map<String, Instant> confirmHandover(@PathVariable UUID id) {

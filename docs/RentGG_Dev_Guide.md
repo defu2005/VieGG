@@ -37,15 +37,31 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
 - **Làm gì:** `TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test`
 - **Khu vực:** `backend/src/test/`
 - **Xong khi:** ghi lại số test chạy, số lỗi, số bỏ qua; mọi test đỏ có ghi chú nguyên nhân.
-- **Kết quả thực tế (2026-11-20):** CHƯA CHẠY CỤC BỘ. Database `rentgg_test` chưa có, role `rentgg` không có quyền CREATEDB, và không có thông tin tài khoản superuser để tạo. Không ghi số liệu. Baseline = CI (mục 1.2). Agent cloud phải làm bước 0 là chạy test trên Postgres service và ghi số liệu thật vào đây.
+- **Kết quả thực tế (2026-11-20, PostgreSQL 16.15 cục bộ, `rentgg_test`):**
+  - Baseline trước mọi thay đổi (commit `dev` 5828bd2): **116 test, 0 lỗi, 0 fail, 0 skip**, BUILD SUCCESS.
+  - Sau §2.0 (commit `e65c1d4`): **184 test, 0 fail, 1 lỗi**. Lỗi duy nhất là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` (xem 1.2). Lượng test tăng 68 từ `StartupSafetyCheckTest`.
+  - Chạy lại riêng `MoneyAndApprovalIT` 3 lần trên cùng commit: 2 pass, 1 lỗi.
+  - Sau khi đưa PR #3 vào chuỗi (merge commit trên `claude/dev-seed-wallet`): **340 test, 0 lỗi, 0 fail, 0 skip**, BUILD SUCCESS; `MoneyAndApprovalIT` chạy 5/5 lần liên tiếp đều exit 0.
+  - Bản sửa deadlock (PR #3, nhánh `claude/festive-archimedes-ov4031`, commit `a65d65e`): trước khi sửa `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` đỏ do deadlock (`40P01`) khi 10 đơn đồng thời vào cùng account; đã sửa trong `OrderService.create` bằng khóa `account_calendar_lock` trước khi chèn. Chạy lặp `MoneyAndApprovalIT` 10/10 lần xanh trên nhánh PR #3.
+
 - **Kiểm thử:** chính lệnh trên `[M]` (DB thật cục bộ nhưng không gọi dịch vụ ngoài).
 
 ### 1.2 CI xanh lần đầu
 - **Làm gì:** kiểm tra tab Actions của `defu2005/VieGG` cho ba workflow `backend.yml`, `web.yml`, `ios.yml`. Sửa lỗi nếu có.
 - **Lưu ý:** `backend.yml` có service Postgres 16 và đã chạy `./mvnw -B test` trên `ubuntu-24.04`. `ios.yml` chạy trên `macos-15`.
 - **Xong khi:** cả ba workflow xanh trên commit `2f69c2c` hoặc commit mới hơn.
+- **Đã đạt (2026-11-21):** `web.yml` và `backend.yml` có kết quả xanh trên đầu nhánh các PR. Lần đỏ còn lại là deadlock đã biết (PR #3), không phải cấu hình CI; `ios.yml` xanh (run `44870630578`).
 - **Kiểm thử:** xem log CI.
-- **Kết quả thực tế (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
+- **Phân loại lỗi CI (run 44692352655, commit `5e91584`):** không phải lỗi cấu hình CI. Lỗi là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins:77` với `40P01 deadlock detected` trên ràng buộc loại trừ `ex_orders_no_overlap` khi 10 giao dịch đặt cùng một tài khoản game cùng lúc. Postgres kill một giao dịch thay vì trả `SLOT_UNAVAILABLE`, nên lỗi flaky. Lịch sử theo commit (cập nhật khi có kết quả mới):
+  - `44692352655` (`5e91584`, CI): **đỏ**, deadlock `concurrentBooking_exactlyOneWins`.
+  - `44705981405` (`e65c1d4`, CI push): **đỏ** vì không tải được Maven wrapper (`wget` tới repo.maven.apache.org). Lỗi hạ tầng, không phải test; chưa sửa.
+  - `44706483775` (`b24a31c`, CI PR): **xanh**, 184 test, 0 fail, 0 lỗi.
+  - `44708319565` (`6e01dd6`, CI PR): **đỏ**, 184 test, 1 lỗi; log chỉ có `concurrentBooking_exactlyOneWins`.
+  - `44708631585` (`f009a08`, CI PR): **xanh**.
+  - Local, cùng commit đầu: 2 fail trên 5 lần chạy `MoneyAndApprovalIT` (gồm 1 baseline pass, 1 full suite fail, 3 lần chạy lại: 2 pass, 1 fail).
+- **Kết quả cũ (2026-11-20, commit `5e91584`):** `Web` xanh (run 44692352516). `Backend` đỏ ở bước `Test` (run 44692352655, exit 1); log yêu cầu đăng nhập GitHub nên chưa đọc được nguyên nhân. Chưa sửa. Cần agent cloud đọc log, phân loại lỗi, và ghi vào đây là baseline failure hoặc sửa nếu do cấu hình CI. `ios.yml` chưa kiểm tra trên `dev`.
+
+- **Kiểm tra CI (2026-11-21, hàng 21 của brief; nhánh `claude/row-20-notification-templates` và các nhánh xếp chồng): ĐÃ KIỂM TRA.** CI trên từng đầu nhánh của chuỗi PR #12 đến #21 (`claude/row-12-*` đến `claude/row-20-*`): đầu nhánh có lần chạy Backend và Web xanh (Backend xanh ở row 12, 14, 15, 16, 18, 19, 20; row 13, 17 có một lần đỏ rồi xanh trên cùng commit). Lỗi đỏ gặp phải và nguyên nhân: (a) "Fetch Maven wrapper": `wget` tới repo.maven.apache.org bị lỗi tải, lỗi hạ tầng của runner, không phải code; chạy lại thì xanh. (b) `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`: deadlock đã biết (PR #3, task `task_0d67c9db`), không liên quan tới hàng này. Lỗi thật đã sửa: từ row 14 CI báo `FATAL: sorry, too many clients already` do mỗi context test giữ pool Hikari 30 kết nối và các lớp `@AutoConfigureObservability` làm thêm context. Sửa: `application-test.yml` pool tối đa 8, tối thiểu rảnh 2; hai lớp observability có `@DirtiesContext(AFTER_CLASS)`. Đo cục bộ đỉnh 12 kết nối (`max_connections` 100). Sửa được merge xuôi từ row 12 đến row 24. iOS: đã xác minh bằng run `44870630578` (xem §6.1). Android không có CI; đã xác minh build cục bộ (xem §6.2). Trạng thái trên đầu nhánh hiện tại: lần đỏ còn lại là deadlock `concurrentBooking_exactlyOneWins`, bản sửa nằm ở PR #3; body từng PR ghi kết quả theo đầu nhánh. Sửa được merge xuôi từ row 12 đến row 24.
 
 ### 1.3 Đi qua các luồng web chưa thử bằng tua thời gian
 Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là một checklist:
@@ -76,32 +92,83 @@ Dùng 🕒 (profile `dev`) hoặc `POST /api/v1/dev/time/*`. Mỗi luồng là m
 - **Hiện trạng:** đã chặn `RENTGG_PAYMENT_FAKE_ENABLED=true` trên prod, nhưng **chưa chặn** `RENTGG_PAYMENT_PROVIDER=FAKE` khi `fake-enabled=false`.
 - **Xong khi:** unit test cho từng trường hợp, khởi động prod với giá trị sai phải thất bại có thông báo rõ.
 - **Kiểm thử:** `[M]`.
+- **Kết quả (2026-11-20, commit `b0ab6be`):** **ĐÃ LÀM.**
+  - Bổ sung theo brief: từ chối `RENTGG_JWT_SECRET` bằng giá trị dev mặc định; từ chối `changeme`, `account_id`, `example` và chuỗi một ký tự lặp lại trong JWT, webhook secret và `RENTGG_CREDENTIAL_KEYS`. `xxx` không dùng cho secret vì base64 ngẫu nhiên chứa nó khoảng 1 trên 500, và credential key không đổi được sau khi đã mã hóa dữ liệu.
+  - Full suite trên `b0ab6be`: **197 test, 0 fail, 0 lỗi, BUILD SUCCESS**.
+  - Boot prod với JWT dev mặc định (PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=db`): bị từ chối, `RENTGG_JWT_SECRET must not be the dev default on staging/prod`.
+  - Unit test: `StartupSafetyCheckTest`, 81 test pass (68 ban đầu + 13 bổ sung cho secret). Negative control trên code cũ: 56/68 test ban đầu fail, và 11/13 test bổ sung fail.
+  - Khởi động prod thật, PostgreSQL 16 cục bộ, DB `rentgg` (giá trị mock):
+    - `RENTGG_PAYMENT_PROVIDER=FAKE`, `RENTGG_MEDIA_STORAGE=db`, PAYOS đủ khóa: bị từ chối, `must not be FAKE on staging/prod (mock provider)`.
+    - PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=s3`, endpoint `ACCOUNT_ID` từ file mẫu: bị từ chối, `RENTGG_S3_ENDPOINT still holds a placeholder value`.
+    - PAYOS đủ khóa, `RENTGG_MEDIA_STORAGE=db`: khởi động thành công (`Started RentGgApplication` trong 6.9 s). Tiến trình sau đó được dừng thủ công.
+  - Ghi chú: khi nhiều giá trị sai cùng lúc, bean `mediaStore` được tạo trước `StartupSafetyCheck` nên thông báo S3 của `S3ObjectStorage` có thể hiện trước. Ứng dụng vẫn không khởi động. Chưa đổi thứ tự bean trong PR này.
+  - Lưu ý: `RENTGG_CORS_ALLOWED_ORIGINS` chỉ kiểm tra không rỗng, trong khi mục trên ghi "đã kiểm tra HTTPS". Chưa sửa.
+  - `RENTGG_PAYMENT_FAKE_ENABLED` trên staging vẫn được phép `true`; để nguyên, chờ quyết định.
 
 ### 2.1 Lọc dữ liệu nhạy cảm trong log (§16.1)
 - **Làm gì:** thêm bộ lọc che các khóa `password`, `token`, `secret`, `authorization`, `key`, `signature` trong log JSON và log text. Áp dụng cho cả nội dung message lẫn MDC.
 - **Khu vực:** cấu hình logback và `shared/`.
 - **Xong khi:** test ghi log với các khóa trên và kiểm tra output không chứa giá trị gốc.
 - **Kiểm thử:** `[M]`.
+- **Kết quả (2026-11-20, nhánh `claude/row-02-log-masking`): ĐÃ LÀM.**
+  - Cơ chế: `SensitiveDataMasker` che giá trị của khóa nhạy cảm (password, token, secret, signature, authorization, *key*) dạng `key=v`, `key: v`, `"key":"v"`, `"key" : "v"`, dạng escape JSON, và dạng có nháy đơn/kép. Giá trị có nháy được che tới nháy đóng. Dạng `Bearer ...` được che toàn bộ.
+  - Text (dev, test): converter cho `%m`/`%msg`/`%message` và `%wEx`, không che cả dòng. Lý do: che cả dòng làm tên logger như `TokenService` bị đọc thành khóa (đã chứng minh: "Started fine" thành "**** fine").
+  - JSON (prod): `MaskingJsonGeneratorDecorator` với `SensitiveJsonValueMasker`, che mọi giá trị chuỗi, kể cả `stack_trace` và MDC trong whitelist.
+  - `DevDataSeeder` không còn in mật khẩu dev vào log.
+  - Test: `SensitiveDataMaskerTest` 19 test; `LogbackConfigTest` 5 test chạy qua `logback-spring.xml` thật (profile `test` và `prod`). Negative control: trên config cũ, 4/5 test cấu hình fail (test probe tên logger pass cả hai, đúng như kỳ vọng).
+  - Full suite: 221 test, 0 fail, 0 lỗi (run này `concurrentBooking_exactlyOneWins` pass).
+  - Boot prod với JSON logging: `Started RentGgApplication` xuất hiện trong dòng JSON hợp lệ.
+  - Giới hạn: giá trị không nháy có khoảng trắng chỉ bị che tới khoảng trắng đầu tiên; khóa ngoài danh sách (ví dụ `vnp_SecureHash`, `mac`) không được che; `StructuredArguments` và `Markers` không được dùng trong code nên không có đường đưa tên trường nhạy cảm vào JSON.
 
 ### 2.2 Tách quyền user DB (§5.4, §14.3)
 - **Làm gì:** tạo hai role `rentgg_app` (không có TRUNCATE/DROP) và `rentgg_migrator` (chạy Flyway). Thêm vào `deploy/docker-compose.prod.yml`, `deploy/.env.prod.example`, và cấu hình `spring.datasource` (tách user cho migration và runtime).
 - **Hiện trạng:** chưa có `rentgg_app` hay `rentgg_migrator` trong `deploy/` và `backend/`.
 - **Xong khi:** migration chạy bằng `rentgg_migrator`, ứng dụng chạy bằng `rentgg_app`, và `rentgg_app` bị từ chối khi `TRUNCATE`.
 - **Kiểm thử:** `[M]` với Postgres cục bộ (tạo hai role trong DB test); `[S]` không áp dụng.
+- **Kết quả (2026-11-20, nhánh `claude/row-03-db-roles`): ĐÃ LÀM, trừ phần Docker.**
+  - Thay đổi: `deploy/db/roles.sql` (idempotent, không mật khẩu, không tên DB; `GRANT CONNECT, CREATE ON DATABASE` lấy từ `current_database()` vì V1 cần extension `btree_gist`); `deploy/db/init-roles.sh` (đặt mật khẩu qua biến psql); compose: app dùng `rentgg_app`, `SPRING_FLYWAY_USER=rentgg_migrator`; `restore.sh` dùng `--role=rentgg_migrator`; `.env.prod.example` có hai biến mới; `application.yml` chỉ thêm chú thích.
+  - Lệch khỏi thiết kế ban đầu: không mount cả `deploy/db` vào `initdb.d`, vì entrypoint chạy mọi `.sql` ở đó và `roles.sql` sẽ chạy trước khi có mật khẩu. Chỉ `init-roles.sh` vào `initdb.d`; `roles.sql` mount vào `/opt/rentgg/db/`.
+  - `DbRolesIT` (5 test, JDBC thuần): Flyway chạy bằng `rentgg_migrator` từ DB rỗng; `rentgg_app` có DML, không có TRUNCATE trên mọi bảng; `SELECT` thật; TRUNCATE, DROP, CREATE, ALTER đều bị `42501`; migrator vẫn TRUNCATE được; `installed_by` của lịch sử Flyway là `rentgg_migrator`. Không đặt `TEST_DB_URL`: skip có lý do (`@EnabledIf`). Trong CI (`CI` đặt): fail nếu thiếu DB hoặc quyền tạo role.
+  - Negative control: thêm `ALTER DEFAULT PRIVILEGES ... GRANT TRUNCATE ON TABLES TO rentgg_app` làm 2 test fail. Control đầu tiên (`GRANT ... ON ALL TABLES`, chạy trước khi có bảng) không có tác dụng và bị loại.
+  - Full suite bình thường (`rentgg`): 226 test, 0 fail, 0 lỗi.
+  - Full suite với `TEST_DB_USERNAME=rentgg_app`, Flyway bằng `rentgg_migrator`, trên DB chuẩn bị bằng `roles.sql` (auth trust): 221 test, 0 fail, 0 lỗi. Lịch sử Flyway: `rentgg_migrator`; bảng thuộc `rentgg_migrator`.
+  - Auth scram-sha-256 (TCP): mật khẩu đúng đăng nhập được, sai bị từ chối (`init-roles.sh` trên DB mới). `DbRolesIT` 5/5 và khởi động prod với `rentgg_app` đều chạy lại dưới scram và pass / Started.
+  - Khôi phục: `pg_restore --no-owner` không có `--role` làm mọi bảng thành `rentgg`, và `rentgg_migrator` mất quyền đọc `flyway_schema_history` (đã chứng minh). Với `--role=rentgg_migrator` từ DB đã chuẩn bị roles: bảng thuộc migrator, quyền app đúng, migrator đọc được 30 dòng lịch sử.
+  - Giới hạn: phần Docker chưa chạy (không có daemon); compose chỉ kiểm tra cú pháp YAML. Volume đã có dữ liệu cần làm tay (xem `docs/RentGG_Production_Deploy.md` B1a). `rentgg_app` có DML trên `flyway_schema_history`. Hàm trigger vẫn thuộc `rentgg`. Cục bộ: role `rentgg` được đặt SUPERUSER (CI cũng là superuser); `DbRolesIT` đặt lại mật khẩu cả hai role trên toàn cluster.
 
 ### 2.3 Swagger và API docs trên staging/prod (§11.1)
 - **Hiện trạng:** `application.yml` đã tắt `springdoc` cho profile `prod`. `StartupSafetyCheck` đã nhận diện `staging` là profile hợp lệ, nhưng `application.yml` chưa có khối `staging`, nên Swagger vẫn bật trên staging. Đây là việc thật, không phải việc tùy chọn.
 - **Làm gì:** thêm khối `on-profile: staging` với `springdoc.api-docs.enabled: false` và `springdoc.swagger-ui.enabled: false`, giống khối prod.
 - **Xong khi:** `GET /swagger-ui.html` và `/v3/api-docs` trả 404 trên prod (và staging nếu có).
 - **Kiểm thử:** `[M]` bằng test MockMvc với profile `prod`.
+- **Kết quả (2026-11-20, nhánh `claude/row-04-swagger-off`): ĐÃ LÀM.**
+  - Thêm khối `staging` trong `application.yml` (api-docs và swagger-ui đều tắt), giống prod.
+  - `ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT`: context thật với giá trị mock qua `StartupSafetyCheck`; `/v3/api-docs`, `/v3/api-docs/swagger-config`, `/swagger-ui.html`, `/swagger-ui/index.html` đều 404. Cần `TEST_DB_URL`.
+  - Control `ApiDocsEnabledInTestProfileIT` (profile `test`): `/v3/api-docs` trả 200.
+  - Negative control: xóa khối `staging` làm `StagingApiDocsDisabledIT` fail.
+  - Full suite: 229 test, 0 fail, 1 lỗi: `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` (deadlock đã biết, §1.2).
 
 ### 2.4 TOTP bắt buộc cho SUPPORT, ADMIN, FINANCE (Phase 1, §4.2)
 - **Làm gì:** thêm MFA TOTP, bắt buộc cho ba role trên. Dùng thư viện TOTP chuẩn RFC 6238.
 - **Xong khi:** staff không có TOTP bị chặn truy cập trang quản trị; test với mã đúng, sai và đã dùng.
 - **Kiểm thử:** `[M]`.
 - **Ghi chú:** tài liệu xếp mục này ở Phase 1. Có thể bỏ qua nếu bạn chưa có tiền thật đi qua.
-
----
+- **Kết quả (2026-11-20, nhánh `claude/row-05-staff-totp`, PR #6): ĐÃ LÀM** (backend, web, kiểm tra trên trình duyệt).
+  - Thứ tự hàng đợi cloud không có §2.4, nhưng brief đưa vào hàng đợi, nên làm theo brief.
+  - Cơ chế: cờ `rentgg.security.staff-mfa-required` (`RENTGG_STAFF_MFA_REQUIRED`, mặc định true; false ở `dev`; `StartupSafetyCheck` từ chối false trên staging/prod). Staff (vai trò có `roles.is_staff`) chưa xác thực có `ROLE_*` nhưng không có quyền nào, nên endpoint `@PreAuthorize` trả 403. Helpdesk đọc quyền staff của chính người gọi từ token (trước đây đọc từ DB: lỗ hổng đã sửa, có test và negative control).
+  - Claim `mfa` trong access token; `refresh_tokens.mfa_verified` giữ qua refresh; đổi mật khẩu và dev time travel giữ trạng thái phiên hiện tại.
+  - TOTP: `dev.samstevens.totp:totp:1.7.1` (6 số, 30 giây, SHA-1), cửa sổ ±1 bước, mỗi bước một lần (cập nhật có điều kiện), khoá 15 phút sau 5 lần sai. Bí mật mã hoá bằng `CredentialCipher` (khoá theo user id).
+  - Đăng nhập: staff đã bật TOTP phải gửi `totpCode` (`MFA_REQUIRED`, `MFA_INVALID`, `MFA_LOCKED`). `AuthService.login` có `noRollbackFor` để ghi nhận lần sai. Staff chưa bật đăng nhập không xác thực và chỉ có thể bật TOTP.
+  - `/api/v1/me`: quyền theo token (rỗng với phiên chưa xác thực) và `mfa: {required, enrolled, verified}`.
+  - Web: `LoginPage` hiện ô mã khi `MFA_REQUIRED`; `StaffMfaPanel` thay trang quản trị và trang chủ staff khi phiên chưa xác thực (bật TOTP, hoặc đăng nhập lại kèm mã).
+  - Migration `V31__staff_mfa.sql`: `refresh_tokens.mfa_verified`, bảng `user_totp`. Áp dụng được dưới `rentgg_migrator`.
+  - Mobile: Android (`ignoreUnknownKeys = true`) và iOS (`JSONDecoder` mặc định) bỏ qua khoá lạ, nên `mfa` không làm hỏng ứng dụng. Nhưng ứng dụng di động chưa có ô nhập mã: staff đăng nhập bằng ứng dụng đó sẽ nhận `MFA_REQUIRED` và không vào được.
+  - Test: `StaffMfaIT` 15 test (quyền 403/200; mã đúng, sai, đã dùng; ±1 chấp nhận, ±2 từ chối; đăng nhập đồng thời chỉ một thắng; khoá sau 5 lần sai; refresh giữ trạng thái; secret mã hoá; endpoint bật TOTP; mọi case staff của RbacIT với token chưa xác thực; `/me`; helpdesk), `TotpVectorsTest` (RFC 6238 Appendix B), `StartupSafetyCheckTest` (cờ tắt bị từ chối). Negative control: bỏ cổng trong converter và bỏ kiểm tra helpdesk đều làm test tương ứng fail.
+  - Full suite: 247 test, 0 fail, 0 lỗi. Backend CI trên `27d356d` (run `44812241774`): xanh, 247 test. Web CI: xanh.
+  - Frontend: `npm ci`, typecheck, build đều pass.
+  - Kiểm tra trên trình duyệt (Playwright, backend `dev` với cờ bật, DB dev đã seed): **ĐẠT**. Admin chưa bật TOTP: thấy panel, tạo khoá, xác nhận mã; đăng xuất; chờ bước mới; đăng nhập bằng mật khẩu nhận ô mã; mã sai báo lỗi; mã đúng vào `/admin/listings` có dữ liệu. Script: `scripts/e2e/staff-mfa.js` (chạy với backend dev và Vite trên 5273; đọc `playwright` từ môi trường). Lưu ý: onboarding overlay chặn thao tác cho cả tài khoản staff, phải đóng trước khi làm việc trên panel.
+  - Lỗi có sẵn, không do hàng 5: boot `dev` trên DB mới thất bại vì `DevDataSeeder.paid` ném `Số dư ví không đủ` (trên `origin/dev` cũng vậy). Đã queue một task để sửa.
+  - Vận hành: lần đầu bật TOTP chỉ dựa vào mật khẩu; mất thiết bị cần reset tay (`docs/RentGG_Production_Deploy.md` B1b); phiên cũ không có `mfa` phải đăng nhập lại.
 
 ## 3. Các mục còn lại của §4.1
 
@@ -125,6 +192,34 @@ Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1
 
 ---
 
+- **Kết quả (2026-11-20, nhánh `claude/row-09-credentials-reauth`): ĐÃ LÀM `[M]`.** Trước đây cờ `rentgg.credentials.require-reauth` không được đọc ở đâu cả; nay có tác dụng. Bật cờ: `GET /orders/{id}/credentials` trả 403 `REAUTH_REQUIRED` (không ghi `CREDENTIAL_VIEWED`, không đặt `credential_first_viewed_at`); `POST /orders/{id}/credentials` với `{password}` trả thông tin khi đúng mật khẩu, 403 `REAUTH_FAILED` khi sai. Mỗi lần thử (đúng hoặc sai) dùng một trong 5 lượt mỗi giờ theo người dùng (429 sau đó). Mọi lần từ chối ghi `CREDENTIAL_VIEW_DENIED` với lý do. Thứ tự kiểm tra: renter, tài khoản bị đình chỉ, cửa sổ thuê, re-auth, rồi giới hạn xem (lần từ chối không tốn lượt xem). Biến môi trường `RENTGG_CREDENTIALS_REQUIRE_REAUTH`, mặc định false. Test: `CredentialReauthIT` (5 test trong context riêng, pool 5, `@DirtiesContext`); điều khiển bỏ kiểm tra làm 3 test fail. Web: `OrderDetailPage` hỏi mật khẩu khi nhận `REAUTH_REQUIRED`; đã chạy `npm run typecheck` và `npm run build` (pass). **Chưa kiểm tra trên trình duyệt.** Khi cờ tắt (mặc định), POST trả thông tin bất kể mật khẩu gửi lên (`CredentialFlagOffIT`), và cả GET lẫn POST đều có `Cache-Control: no-store`. Khi cờ bật, các lần thành công cũng dùng lượt 5 lượt/giờ, nên renter chỉ xem được 5 lần mỗi giờ trên mọi đơn. iOS và Android chưa có bước này, nên cờ giữ false cho đến khi có.
+
+- **Kết quả mục 6 (2026-11-20, nhánh `claude/row-10-login-backoff`): ĐÃ LÀM `[M]`.** §12.5 không đưa ngưỡng hay yêu cầu trạng thái bền vững, chỉ ghi "sai liên tiếp → chờ lũy tiến", nên dùng cơ chế đã chốt: `LoginBackoff` trong bộ nhớ, khoá giống limiter đăng nhập (IP và email viết thường), thời gian lấy từ `Clock`. Năm lần sai đầu miễn phí; sau đó chờ 30 s, nhân đôi đến trần 15 phút. Chỉ `INVALID_CREDENTIALS` được tính; `MFA_*` và `USER_SUSPENDED` không tính và không reset; phiên được cấp thì reset. Kiểm tra thời gian chờ trước khi xác minh mật khẩu (trả 429 `RATE_LIMITED`, không tính). Trạng thái quá một giờ không dùng bị quên; số khoá giới hạn 50 000. Khi đầy, bỏ trước các khoá không còn chờ (chỉ có sai đến năm lần), rồi đến khoá lâu không dùng nhất, mỗi lần bỏ một phần mười. Không bao giờ xóa hết: một đợt flood email ngẫu nhiên không reset được thời gian chờ của người thật đang bị khoá (`LoginBackoffCapacityTest`). Giới hạn còn lại: kẻ tấn công đủ kiên nhẫn có thể tạo 50 000 khoá đã leo thang để đẩy một khoá khác ra; khi đó phải trả cho khoảng 300 000 lần sai. Theo instance và mất khi khởi động lại, giống limiter Bucket4j. Test: `LoginBackoffIT` (5): năm sai rồi đúng (429), chờ và đúng (200), sai lại (401); các lần chờ tăng dần, trần 15 phút; email không tồn tại có cùng chuỗi; IP hoặc email khác không bị ảnh hưởng; nhân viên đã bật TOTP gửi thiếu mã sáu lần không bị khoá. Điều khiển bỏ kiểm tra trước mật khẩu làm 3 test fail. Full suite: 305 test, 0 fail, 0 lỗi.
+
+- **Kết quả mục 7 (2026-11-20, nhánh `claude/row-11-abuse-signal`): ĐÃ LÀM `[M]`.** Bảng `abuse_signals` có sẵn từ V1 (không có CHECK trên `type`, `order_id` không có FK tới `orders`), nên không cần migration mới. Khi chạm giới hạn xem thông tin (`CREDENTIAL_VIEW_RATE_LIMITED`) hoặc giới hạn re-auth (`CREDENTIAL_VIEW_REAUTH_RATE_LIMITED`), ghi tối đa một tín hiệu cho mỗi người dùng và đơn trong một giờ (kiểm tra `existsSince`), trong cùng transaction (có `noRollbackFor`), không dùng `recordIndependently`. Test: `CredentialViewLimitSignalIT` (10 lần xem không có tín hiệu; lần 11 trả 429 và có đúng một dòng; lần 12 vẫn một dòng; SUPPORT đọc được qua `/api/v1/admin/users/{id}/abuse-signals`), và `CredentialReauthIT` có thêm kiểm tra giới hạn re-auth. Điều khiển bỏ lời gọi ghi tín hiệu làm test fail. Full suite: 306 test, 0 fail, 0 lỗi.
+
+- **Kết quả mục 8 (2026-11-20, nhánh `claude/row-12-prometheus-metrics`): ĐÃ LÀM `[M]`.** Ba metric còn thiếu so với §16.2 (`Implementation_Status` §4.1 mục 8): `rentgg_rotation_overdue_total` (counter, tăng khi job đánh dấu `ROTATION_OVERDUE`), `rentgg_rotation_duration_seconds` (timer, ghi khi rotation hoàn tất; thời gian đo từ lúc mở cửa sổ, tức `rotationDueAt − SLA`, nên đúng cả khi đi qua `ROTATION_OVERDUE`), và `rentgg_deposits_by_status` (gauge đếm theo `status`, đọc DB khi scrape). Ba series được đăng ký lúc khởi động nên có giá trị 0 trước mọi sự kiện. Phần `rentgg_deposits_amount_by_status` đã có từ trước. Test: `RotationAndDepositMetricsIT` (`@AutoConfigureObservability`, vì Boot tắt export trong `@SpringBootTest`): kiểm tra ba series có trên `/actuator/prometheus`, gauge khớp `select count(*)`, và counter/timer tăng đúng khi chạy vòng đời thuê. Điều khiển bỏ lệnh tăng counter làm test fail. Full suite: 307 test, 0 fail, 0 lỗi. Chưa làm: `rentgg_orders_transition_total` vẫn chưa phủ mọi chuyển trạng thái (ngoài phạm vi mục này).
+
+- **Kết quả mục 9 (2026-11-20, nhánh `claude/row-13-mdc-log-context`): LÀM MỘT PHẦN `[M]`.** `RequestLogContext` (interceptor MVC, chạy sau xác thực) đặt `userId` từ người gọi và `orderId` từ biến `{id}` của route `/api/v1/orders/{id}...`; xóa cả hai khi kết thúc request, nên request ẩn danh sau request đăng nhập không mang người dùng cũ. `TraceIdFilter` vẫn xóa hai khóa trong `finally`. Định dạng console dev/test nay in `[traceId] [userId] [orderId]`; JSON prod đã có whitelist sẵn. Test: `RequestLogContextIT` (request thật: có hai khóa khi đăng nhập, không có khi ẩn danh; điều khiển bỏ dòng đặt `orderId` làm test fail), `LogbackConfigTest` có thêm hai test (text dev/test và JSON prod giữ UUID không bị che). **Chưa làm:** job xử lý đơn (`jobs/`) chưa đặt `orderId` cho log; phần đó để sau, vì job không đi qua interceptor. Full suite: 310 test, 0 fail, 0 lỗi.
+
+- **Kết quả mục 10 (2026-11-20, nhánh `claude/row-14-alert-rules`): ĐÃ LÀM `[M]`.** File rule: `deploy/monitoring/rentgg-alerts.yml` (bảng ghi khu vực `jobs/`, nhưng rule là cấu hình Prometheus nên đặt trong `deploy/`). Ba cảnh báo: `RentggOutboxStuck` (tuổi sự kiện outbox cũ nhất > 15 phút), `RentggOutboxBacklog` (outbox pending > 500), `RentggRefundRetryFailing` (có lần thử hoàn tiền lại thất bại trong 15 phút). Để có metric cho refund: `rentgg_refunds_total{kind,result}` tăng `result=failed` khi job thử lại hoàn tiền ném lỗi; hai kind `RENT`/`DEPOSIT` và hai result được đăng ký lúc khởi động. Số đếm là theo từng instance, reset khi khởi động lại. Kiểm tra: `promtool check rules deploy/monitoring/rentgg-alerts.yml` → SUCCESS, 3 rule (promtool 2.54.1, tải từ release chính thức, chạy được trong cloud). Test: `AlertRulesIT` (có đủ `alert`, `expr`, `for`, `labels.severity`, `annotations.summary`; mọi metric trong `expr` có trên `/actuator/prometheus`; điều khiển đổi tên một metric làm test fail). **Chưa làm:** chưa có `prometheus.yml` nối rule vào server (ngoài repo). Full suite: 311 test, 0 fail, 0 lỗi.
+
+- **Kết quả mục 11 (2026-11-21, nhánh `claude/row-15-admin-endpoints`): ĐÃ LÀM `[M]`.** Ba endpoint: (1) danh sách chờ `verify-recovery` đã có sẵn: `GET /api/v1/admin/game-accounts` (mặc định `PENDING_VERIFICATION`, quyền `game_account:verify_recovery`); (2) danh sách người dùng đã có sẵn: `GET /api/v1/staff/users` (tìm theo email hoặc tiền tố id, lọc theo trạng thái, KYC, mức rủi ro, vai trò); (3) **mới**: `GET /api/v1/admin/audit` với bộ lọc `entityType`, `entityId`, `actorId`, `action`, phân trang tối đa 100, mới nhất trước, quyền `audit:read`. Quyền `audit:read` được thêm vào enum và cấp cho ADMIN bằng migration `V32__audit_read_permission.sql`. Endpoint không trả IP và user agent; `before` và `after` là JSON thật (object), không phải chuỗi lồng. Test: `AdminOpsIT` (4 test: hàng chờ có tài khoản và rời hàng sau khi xác minh; tìm người dùng theo id; tra audit trả `RECOVERY_VERIFIED` và không có `ip`/`userAgent`; renter bị 403 trên cả ba). `AuthorizationCoverageTest` (5) và `RbacIT` (9) vẫn xanh; `DbRolesIT` 5/5. Full suite: 315 test, 0 fail, 5 bỏ qua. 5 bỏ qua là `DbRolesIT`, vì role `rentgg` cục bộ lúc đó chưa có quyền tạo role; sau khi cấp quyền cho role cục bộ đó, chạy riêng `DbRolesIT` được 5/5 pass. Điều khiển (bỏ quyền) chưa chạy cho hàng này.
+
+- **Kết quả mục 12 (2026-11-21, nhánh `claude/row-16-dispute-appeal`): ĐÃ LÀM `[M]`.** Chủ đơn (`orders.owner_id`) kháng nghị khiếu nại đã có quyết định qua `POST /api/v1/disputes/{id}/appeal` (`{reason}`, 10–1000 ký tự, quyền `dispute:open`). Cách hiểu "một lần cho mỗi chủ account": **một kháng nghị cho mỗi chủ trên mỗi khiếu nại** (ràng buộc unique `(dispute_id, appellant_id)` trong `V33__dispute_appeals.sql`). Kháng nghị trong 7 ngày kể từ `decided_at`. Người khác chủ đơn, kể cả renter, nhận 404. Trước quyết định: 409 `INVALID_STATE`. Quá hạn: `APPEAL_WINDOW_CLOSED`. Trùng: `APPEAL_ALREADY_FILED`. Support xem danh sách qua `GET /api/v1/support/disputes/{id}/appeals` (quyền `dispute:read_any`). Kháng nghị chỉ được ghi nhận ở trạng thái `PENDING`; quyết định không đổi. Bước xét kháng nghị chưa làm. Test: `DisputeAppealIT` (2 test: chủ kháng nghị một lần sau quyết định, người khác không được, lý do ngắn bị từ chối; hết hạn sau 8 ngày). `DisputeIT` (6) vẫn xanh. Điều khiển bỏ kiểm tra chủ đơn làm test fail. Full suite: 317 test, 0 fail, 0 lỗi, 0 bỏ qua (chạy lần 2; lần 1 có 1 lỗi deadlock ở `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins`, đã biết, không liên quan).
+
+- **Kết quả mục 13 (2026-11-21, nhánh `claude/row-17-legal-notices`): ĐÃ LÀM `[M]`.** Bảng `legal_notices` (V34) và endpoint tiếp nhận `POST /api/v1/support/legal-notices` (quyền `game:change_tos`, chỉ nhân viên). Mỗi hồ sơ có nhà phát hành, số tham chiếu, tiêu đề, nội dung, game (tùy chọn), thời điểm nhận (mặc định là bây giờ, không được ở tương lai), trạng thái `OPEN`, và **hạn phản hồi = thời điểm nhận + 30 ngày**. Đây là lựa chọn của mình: đặc tả không ghi số ngày, nên hằng số `LegalNoticeService.RESPONSE_WINDOW` cần được pháp lý xác nhận. Có `GET /api/v1/support/legal-notices/{id}` và danh sách lọc theo trạng thái, sắp theo hạn phản hồi. Chưa làm: chuyển trạng thái (`RESPONDED`, `CLOSED`) và nhắc hạn; tự động đổi `tos_status` theo hồ sơ vẫn do luồng UC-20 hiện có xử lý. Test: `LegalNoticeIT` (2 test: nhân viên ghi hồ sơ, hạn đúng 30 ngày sau khi nhận, danh sách có hồ sơ; từ chối nội dung thiếu và renter bị 403). Điều khiển rút ngắn hạn xuống 29 ngày làm test fail. `AuthorizationCoverageTest` (5) và `ArchitectureTest` (2) vẫn xanh. Full suite: 319 test, 0 fail, 0 lỗi, 0 bỏ qua.
+
+- **Kết quả mục 14 (2026-11-21, nhánh `claude/row-18-dispute-deadline`): ĐÃ LÀM `[M]`.** Job `markDisputeDeadlinesOverdue` (đăng ký trong `Jobs.runAll` và `JobScheduler`, khóa ShedLock) đánh dấu khiếu nại còn `OPEN` mà đã quá `deadline_at`: đặt cột `deadline_overdue_at` (V35) một lần và ghi outbox `DisputeDeadlineOverdue`. Job không phân xử; quyết định vẫn thuộc support. Tính idempotent nằm ở truy vấn ứng viên (chỉ lấy dòng có `deadline_overdue_at` rỗng). Test: `DisputeDeadlineIT` (trước deadline không đánh dấu; sau deadline đánh dấu đúng một lần với một sự kiện outbox; chạy lại không đổi; khiếu nại đã quyết định trước deadline không bị đánh dấu). Điều khiển: bỏ chốt một lần trong thực thể không làm test fail, vì truy vấn đã chặn đánh dấu lặp; kết luận: chốt ở truy vấn là chốt thật. `DisputeIT` (6) và `ArchitectureTest` (2) xanh. Full suite: 320 test, 0 fail, 0 lỗi, 0 bỏ qua.
+
+- **Kết quả mục 15 (2026-11-21, nhánh `claude/row-19-json-body-limit`): ĐÃ LÀM `[M]`.** `JsonBodyLimitFilter` (chạy trước xác thực và controller) trả **413** `PAYLOAD_TOO_LARGE` khi body `application/json` vượt 1 MB (1 048 576 byte). Body không có `Content-Length` (chunked) được đọc tối đa 1 MB+1 byte trước; nếu vượt thì 413, nếu không thì body đã đọc được gói lại cho controller. Multipart (ảnh, tệp khiếu nại) không bị giới hạn này và giữ giới hạn riêng. Giới hạn áp dụng cho `application/json` và mọi `application/*+json` (ví dụ `application/vnd.api+json`), vì Jackson nhận các kiểu này; test `vendorJsonTypesAreLimitedToo` đã được kiểm chứng: bỏ phần `+json` làm test fail. Test: `JsonBodyLimitIT` (3 test: body 1 MB+1 byte nhận 413 với mã `PAYLOAD_TOO_LARGE`; body 900 KB đi tới controller và nhận 401 sai mật khẩu; multipart 1,1 MB không nhận 413). Điều khiển bỏ hai nhánh kiểm tra độ dài làm test 413 fail. `AuthorizationCoverageTest` (5) và `ForwardedHeadersIT` (1) xanh. Full suite: 323 test, 0 fail, 0 lỗi, 0 bỏ qua.
+
+- **Kết quả mục 16 (2026-11-21, nhánh `claude/row-20-notification-templates`): ĐÃ LÀM `[M]`.** Trước đây mọi sự kiện có nội dung bằng chính tiêu đề. Nay `notification/application/NotificationTemplates` giữ tiêu đề và nội dung riêng cho cả 41 sự kiện; tiêu đề giữ nguyên từng chữ so với bản cũ (đã kiểm tra bằng diff). Sự kiện hỗ trợ vẫn dùng tiêu đề và nội dung là tiêu đề của tin nhắn. Test: `NotificationTemplatesTest` (2): 41 sự kiện, mỗi sự kiện có tiêu đề, nội dung không rỗng, không trùng tiêu đề, dài ít nhất 30 ký tự, và nội dung không trùng giữa các sự kiện; sự kiện lạ không có mẫu. Điều khiển sao chép tiêu đề vào một nội dung làm test fail. Nội dung là câu tĩnh, chưa có biến theo đơn. Full suite: 325 test, 0 fail, 0 lỗi, 0 bỏ qua.
+
+
+
+
+
 ## 4. Tích hợp bên ngoài (làm bằng mock trước)
 
 Mỗi tích hợp có hai checkbox: **`[M]` đạt với mock** và **`[S]` đạt với sandbox thật**. Mục `[S]` để trống cho đến khi bạn có khóa (Phụ lục A).
@@ -134,15 +229,33 @@ Có năm lớp: `VnpayGateway`, `MomoGateway`, `ZalopayGateway`, `PayosGateway`,
 
 Cho **mỗi** adapter, viết contract test với mock HTTP server (WireMock hoặc MockWebServer):
 
-- [ ] **Tạo thanh toán:** request có đúng chữ ký, đúng tham số; response thành công trả URL thanh toán.
-- [ ] **Webhook hợp lệ:** chữ ký đúng → xác nhận thanh toán, cập nhật `payment_intents`.
-- [ ] **Webhook sai chữ ký:** → từ chối, ghi audit, không đổi trạng thái.
-- [ ] **Webhook phát lại (replay):** cùng một sự kiện gửi hai lần → chỉ xử lý một lần (idempotent).
-- [ ] **Hoàn tiền toàn phần và một phần:** số tiền đúng, không vượt số đã trả của từng payment.
-- [ ] **Timeout / 5xx:** retry có giới hạn, không đổi trạng thái sai.
+- [x] **Tạo thanh toán `[M]`:** request có đúng chữ ký, đúng tham số; response trả URL. PayOS, MoMo, ZaloPay có contract với mock server; VNPay kiểm tra URL với hash tính độc lập.
+- [x] **Webhook hợp lệ `[M]`:** chữ ký đúng → xác nhận thanh toán, cập nhật `payment_intents`, cộng ví một lần. PayOS và MoMo qua endpoint; ZaloPay và VNPay qua `PaymentProvidersIT` và contract.
+- [x] **Webhook sai chữ ký `[M]`:** → từ chối, ghi audit, không đổi trạng thái. PayOS (`PayosWebhookIT`), MoMo (`MomoWebhookIT`); ZaloPay và VNPay qua `PaymentProvidersIT`.
+- [x] **Webhook phát lại (replay) `[M]`:** chỉ cộng một lần, kể cả replay đồng thời (PayOS, `PayosWebhookIT`).
+- [ ] **Hoàn tiền toàn phần và một phần `[M]`:** *không triển khai ở mức PSP.* Không adapter nào gọi API hoàn tiền của PSP; hoàn tiền luôn cộng vào ví (`PaymentService.processRefund`). Ca trần qua nhiều payment được `OrderLifecycleIT` kiểm tra.
+- [x] **Timeout / 5xx `[M]`:** một lần thử, không retry; trả `ProviderException` (PayOS, ZaloPay). Client gửi lại với cùng Idempotency-Key. Lỗi gửi về client còn chứa URL endpoint: xem ghi chú bên dưới.
 - [ ] **`[S]` Sandbox thật:** tạo thanh toán thật trên sandbox, webhook thật, hoàn tiền thật. *Để trống đến khi có khóa.*
 
 Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); các adapter còn lại chỉ `[M]`.
+
+- **Kết quả (2026-11-20, nhánh `claude/row-06-psp-contract`): ĐÃ LÀM `[M]`; `[S]` chưa làm.**
+  - Test contract với `MockWebServer` (không Spring): PayOS (`PayosGatewayContractTest` 9, `PspHttpFailureTest` 5), MoMo (`MomoGatewayContractTest` 8), ZaloPay (`ZalopayGatewayContractTest` 7), VNPay (`VnpayGatewayContractTest` 1, URL tự kiểm bằng HMAC-SHA512 độc lập).
+  - Endpoint (context mặc định, Postgres): PayOS (`PayosWebhookIT` 5: hợp lệ cộng một lần, chữ ký sai không đổi gì và có audit, replay đồng thời cộng đúng một lần, số tiền khác có audit, top-up tới endpoint chết trả 502 và giữ số dư), MoMo (`MomoWebhookIT` 2: hợp lệ trả 204 cộng một lần, chữ ký sai trả 400). Hợp đồng của `PaymentProvidersIT` cập nhật vì PAYOS và MOMO nay có khoá test: danh sách provider và webhook MoMo rỗng (400 thay vì 404) và top-up PAYOS (502).
+  - Chưa cấu hình (không Spring): khoá trống thì `isConfigured()` false, provider không hiện, `require` ném `PAYMENT_PROVIDER_UNAVAILABLE` (`UnconfiguredProvidersTest` 2).
+  - Negative control, từng adapter (mỗi lần khôi phục code sau khi chạy):
+    - PayOS: bỏ kiểm tra chữ ký callback → 2 test contract và 1 test endpoint fail; ký outbound bằng khoá khác → test outbound fail.
+    - MoMo: bỏ kiểm tra chữ ký callback → test contract và `MomoWebhookIT` fail; ký outbound bằng khoá khác → test outbound fail.
+    - ZaloPay: ký outbound bằng `key1` sai → test outbound fail; bỏ kiểm tra `key2` → test callback sai khoá/sai số tiền và test redirect sai số tiền fail. (Test redirect hợp lệ vẫn pass, đúng như mong đợi.)
+    - VNPay: hash URL sai → `checkoutUrlCarriesTheDocumentedParametersAndAHashOverItsQuery` fail (surefire: `VnpayGatewayContractTest.java:41`). VNPay callback chỉ được kiểm tra bởi `PaymentProvidersIT`, không có contract riêng.
+  - Ghi chú vận hành: `createTopup` trả nguyên văn thông báo lỗi của PSP (`PaymentProvidersIT`/`PayosWebhookIT`: "Không gọi được cổng thanh toán: I/O error on POST request for \"http://127.0.0.1:1/...\"") cho client. Thông báo này chứa URL endpoint. Chưa sửa trong hàng này; đã queue task.
+  - Hoàn tiền: không adapter nào gọi API hoàn tiền của PSP. Hoàn tiền luôn cộng vào ví người thuê (`processRefund`). Ô "hoàn tiền toàn phần/một phần" ghi là **không triển khai ở mức PSP**. Ca trần qua nhiều payment đã có trong `OrderLifecycleIT` (số tiền hoàn chia theo các payment của đơn).
+  - Quyết định: không thêm retry. Mỗi lần gọi PSP thất bại đúng một lần; client gửi lại với cùng Idempotency-Key.
+  - Phát hiện: 5xx bị từ chối bởi request factory (HttpURLConnection ném IOException), không phải do adapter kiểm tra status. Test probe `PspHttpFailureTest` ghi lại hành vi này.
+  - PayOS: `code` trong envelope callback nằm ngoài chữ ký (chỉ `data` được ký).
+  - Giới hạn: test chỉ dùng mock. Đối chiếu với nhà cung cấp thật là `[S]`, chưa xác minh.
+  - CI: thêm bước thử lại tải Maven wrapper ba lần (`.github/workflows/backend.yml`).
+  - Full suite: 286 test, 0 fail, 0 lỗi.
 
 ### 4.2 Ảnh và video trên S3/R2
 - **Hiện trạng:** `MediaObjectStorageIT` đã dùng `InMemoryStorage` (mock), không gọi S3 thật.
@@ -151,9 +264,20 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
   - `[M]`: kiểm tra backfill chuyển đúng ảnh cũ từ `db` sang storage, không mất dữ liệu.
   - `[S]`: upload và đọc lại trên bucket R2 thật `rentgg-media`.
 - **Xong khi:** test backfill pass; `[S]` để trống đến khi có token R2.
+- **Kết quả (2026-11-20, nhánh `claude/row-07-s3-storage`): ĐÃ LÀM `[M]`; `[S]` để trống.**
+  - `[M]` S3 thật (giao thức, chữ ký): `s3proxy` 2.3.0 chạy trong JVM, Maven resolve được, CI không cần binary. Đã thử: secret sai bị 403 (`S3Exception`), bucket không có báo `NoSuchBucketException`. Chữ ký được kiểm tra, không phải "chấp nhận mọi thứ".
+  - `S3ObjectStorageTest` (5, không Spring): round trip 5 MiB + 7 byte chứa đủ 256 giá trị byte; ghi đè, xoá rồi đọc báo lỗi, xoá khoá không tồn tại không lỗi; khoá đúng định dạng `MediaStore` (`listing-images/<parent>/<uuid>`); secret sai và bucket thiếu đều lỗi rõ ràng.
+  - Backfill (`MediaObjectStorageIT`, dùng context có sẵn, không thêm context): 5 hàng cũ đếm đúng số lượng, băm SHA-256 của mỗi ảnh đọc qua endpoint công khai khớp bản gốc, lần chạy thứ hai chuyển 0. Lỗi giả lập ở put thứ 2: hàng lỗi giữ byte và vẫn đọc được qua endpoint, lần chạy sau hoàn tất. Dữ liệu cũ được chèn trực tiếp bằng SQL (không qua endpoint upload, vì upload sẽ đưa byte lên bucket ngay); mỗi bảng backfill có một hàng: `listing_images`, `dispute_attachments`, `support_attachments`. Khoá và byte được kiểm tra riêng cho hai bảng dispute và support.
+  - Code backfill xoá byte trong DB **sau** khi put thành công (đúng).
+  - Điều khiển: bỏ dòng `storage.put` trong backfill làm 3 test backfill fail. Code đã khôi phục.
+  - Full suite: 293 test, 0 fail, 1 lỗi deadlock đã biết.
+  - Chưa làm: R2 thật (`[S]`).
 
 ### 4.3 Kênh thông báo khác (email, push)
 - **Hiện trạng:** không tìm thấy adapter email hay push trong code. Nếu sau này thêm, làm theo mẫu 4.1 (`[M]` + `[S]`).
+- **Kết quả kiểm tra (2026-11-20, nhánh `claude/row-08-notify-audit`): không có adapter kênh ngoài.** Đã tìm trong `backend/src/main` và `pom.xml` các từ khoá `JavaMailSender`, `javax.mail`, `jakarta.mail`, `smtp`, `firebase`, `APNs`, `fcm`, `webpush`, `mailgun`, `sendgrid`: không có kết quả.
+  - Thông báo hiện chỉ là bản ghi trong bảng `notifications` (V6), tạo từ sự kiện outbox bởi `NotificationService` (có tiêu đề tiếng Việt cho từng sự kiện), đọc qua `/api/v1/notifications` (danh sách, đánh dấu đã đọc, đánh dấu tất cả, đếm chưa đọc).
+  - Không tạo adapter mới (theo brief). Việc gửi email hoặc push sẽ làm theo mẫu 4.1 khi có yêu cầu.
 
 ---
 
@@ -174,12 +298,23 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 ### 6.1 iOS: sửa lỗi build trên CI
 - **Làm gì:** xem log `ios.yml` (macOS-15), sửa lỗi biên dịch Xcode nếu có. `RentGGCore` đã có 39 unit test và 6 test tích hợp (27/10).
 - **Xong khi:** `ios.yml` xanh.
+- **Đã đạt (2026-11-21):** `ios.yml` xanh (run `44870630578`, nhánh `claude/row-22-ios-ci`).
 - **Kiểm thử:** CI. Chạy trên Simulator thủ công cần máy Mac, để sau.
+
+- **Kết quả §6.1 (2026-11-21, nhánh `claude/row-22-ios-ci`): XANH, không cần sửa.** Lịch sử `ios.yml` trước đó chỉ có một lần chạy (nhánh `main`, 2026-10-29, xanh). Hôm nay chạy thủ công bằng `workflow_dispatch` trên nhánh `claude/row-22-ios-ci`: **run `44870630578`, xanh**, job `build` thành công, không bước nào đỏ (test `RentGGCore`, XcodeGen, build cho Simulator). Không có log đỏ để chẩn đoán, nên không có lỗi nào được sửa. Không đổi `ios.yml`.
 
 ### 6.2 Android: ký bản release từ biến môi trường
 - **Làm gì:** đọc keystore path, alias, mật khẩu từ biến môi trường hoặc `~/.gradle/gradle.properties` trên máy (ngoài repo). `android/gradle.properties` **được commit** trong repo, chỉ chứa cấu hình build, không đặt khóa ký vào đó; không đưa khóa vào `build.gradle.kts`.
 - **Xong khi:** `./gradlew assembleRelease` tạo APK đã ký khi có biến; khi thiếu, rơi về bản unsigned như hiện tại.
+- **Đã đạt (2026-11-21):** cả hai nhánh đã kiểm chứng (xem kết quả bên dưới).
 - **Kiểm thử:** `[M]` (build). Keystore thật là `[S]`.
+
+- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ XÁC MINH.** Cần `dl.google.com` trong danh sách host được phép. Host này đã được cho phép tạm thời trong môi trường Default để kiểm tra, có sự đồng ý của chủ dự án, và có thể gỡ ngay sau khi kiểm tra xong. Cài SDK (`platforms;android-35`, `build-tools;35.0.0`) bằng `sdkmanager`. Kết quả:
+  - Không biến ký: `assembleRelease` tạo `app-release-unsigned.apk`; `apksigner verify` báo không có chữ ký, đúng như kỳ vọng.
+  - Có biến ký với keystore thử tạm (ngoài repo, đã xóa sau khi chạy): tạo `app-release.apk`; `apksigner verify --print-certs` đọc đúng chứng chỉ của keystore thử.
+  - Thiếu `RENTGG_KEY_ALIAS` khi đã có `RENTGG_KEYSTORE_PATH`: build dừng ngay với thông báo tiếng Việt.
+  - Lần đầu Maven Central trả 429 khi Gradle tải nhiều artifact cùng lúc; chạy lại sau ít phút thì xong. Đây là lỗi hạ tầng, không liên quan tới code.
+  - Keystore thật không nằm trong repo; `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties`.
 
 ### 6.3 Android: E2E trên emulator hoặc điện thoại thật
 - **Hiện trạng:** `android/PROGRESS.md` ghi máy báo `VirtualizationFirmwareEnabled = False`. Trạng thái này **chưa xác minh lại** hôm nay.
@@ -196,9 +331,12 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
   - tình trạng Docker, ảo hóa Android;
   - trạng thái các mục §4.1 sau khi làm.
 - **Xong khi:** mỗi tài liệu có ngày cập nhật mới và không còn mục nào mâu thuẫn với code.
+- **Đã đạt (2026-11-21):** ba file có ngày cập nhật, mục §4.1 đã đối chiếu với PR, số migration là 35 (V1–V35) vào thời điểm kiểm tra; hiện tại là 37 (V1–V37), xem `RentGG_Implementation_Status.md`, CI có cho backend, web và iOS. Vẫn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 - **Kiểm thử:** đọc lại; đối chiếu với `git log`.
 
 ---
+
+- **Kết quả §7 (2026-11-21, nhánh `claude/row-24-status-docs`): ĐÃ LÀM.** Cập nhật `RentGG_Implementation_Status.md` (35 migration V1–V35, CI backend và web đã có, §4.1 đánh dấu mục đã làm), `RentGG_Frontend_Status.md` (ngày rà soát, CI web) và `RentGG_iOS_Status.md` (kết quả ios.yml, Android). Mỗi file có ngày cập nhật. Đối chiếu với `git log` của các nhánh `claude/row-*`. Mục còn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
 
 ## Phụ lục A — Giá trị cần điền khi bạn đăng ký xong
 
@@ -217,6 +355,7 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 | `RENTGG_PUBLIC_BASE_URL` | URL backend công khai (HTTPS) | Dev: `localhost:8080` | Trang thanh toán của provider gọi lại được |
 | `RENTGG_FRONTEND_BASE_URL` | URL web nơi người trả tiền quay về (HTTPS) | Dev: `localhost:5273` | Redirect sau thanh toán về đúng trang |
 | `RENTGG_PAYMENT_PROVIDER` | Chọn provider (`FAKE`, `PAYOS`, `VNPAY`, `MOMO`, `ZALOPAY`) | Dev: `FAKE`; test mock từng adapter | Khởi động prod với `FAKE` phải bị từ chối (mục 2.0) |
+| `RENTGG_CREDENTIALS_REQUIRE_REAUTH` | Bật nhập lại mật khẩu RentGG khi xem thông tin đăng nhập (D5) | Dev/test: `false` | Bật, GET trả `REAUTH_REQUIRED`; POST với mật khẩu đúng trả thông tin |
 | `RENTGG_PAYMENT_FAKE_ENABLED` | Bật giả lập (chỉ dev) | Dev: `true` | Prod phải là `false` |
 | `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` | PayOS (ưu tiên) | Mock HTTP server (mục 4.1) | Tạo link thanh toán sandbox trả `checkoutUrl`; webhook thật được ký đúng |
 | `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | VNPay sandbox (đăng ký tại sandbox.vnpayment.vn) | Mock (mục 4.1) | Tạo URL thanh toán; IPN thật được nhận tại `/api/v1/payments/webhook/vnpay` |

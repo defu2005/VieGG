@@ -21,6 +21,8 @@ export interface Me {
   status: string;
   kycStatus: string;
   riskTier: string;
+  /** Staff second factor (TOTP). required: applies to this account; verified: this session passed it. */
+  mfa: { required: boolean; enrolled: boolean; verified: boolean };
 }
 
 export interface PageResponse<T> {

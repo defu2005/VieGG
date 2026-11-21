@@ -1,6 +1,6 @@
 # RentGG — Tình trạng App iOS
 
-**Bắt đầu:** 2026-10-26 · **Cập nhật:** 2026-10-27 · **Rà soát:** 2026-10-29
+**Bắt đầu:** 2026-10-26 · **Cập nhật:** 2026-11-21 · **Rà soát:** 2026-10-29
 **Mã nguồn:** `ios/` (SwiftUI, iOS 17+, project sinh bằng XcodeGen) · hướng dẫn: `ios/README.md`
 **Đối chiếu với:** `frontend/` (luồng người dùng đầy đủ) và API trong `backend/`
 
@@ -62,4 +62,6 @@ Ngoài phạm vi app di động: các màn staff (`/admin/*`, `/support/disputes
 - **2026-10-26** — Phần 3: chi tiết listing có đặt thuê (chọn giờ, thời lượng theo bước 30 phút, cảnh báo trùng lịch bận, ước tính tiền), chi tiết đơn với đủ thao tác theo vai trò (thanh toán + giả lập ở bản Debug, duyệt/từ chối, xác nhận bàn giao, xem credentials có nút sao chép và tự xóa clipboard sau 2 phút, yêu cầu/gửi OTP, hủy có hỏi lại), khiếu nại (phần 5) gộp trong chi tiết đơn.
 - **2026-10-26** — Phần 4: tab "Của tôi" (hồ sơ, KYC tùy chọn, xác nhận trước khi đăng xuất), Ví (số dư, rút tiền có kiểm tra số dư và số tài khoản 6–20 chữ số, lịch sử rút, cọc theo đơn), Account cho thuê (thêm account game, đổi mật khẩu, lấy lại có hỏi lại, tạo/sửa listing gửi kèm `version`, gửi duyệt, tạm dừng). Thêm icon app và màu nhấn (`Assets.xcassets`), `project.yml` liên kết `RentGGCore`, khai báo scheme `RentGG`, `SWIFT_VERSION` 5.0. Thêm workflow `.github/workflows/ios.yml` (macOS runner). `swiftc -parse` qua cả 16 file app.
 - **2026-10-27** — Phần 6: dựng PostgreSQL 16 + JDK 21 + Maven trong Ubuntu, build và chạy backend dev. Thêm 6 test tích hợp. Test phát hiện quy tắc khiếu nại thật của backend (mục 4), đã sửa `OrderActions`, thêm cảnh báo trước khi xác nhận bàn giao, ẩn loại khiếu nại đang mở, cảnh báo hậu quả của "báo chiếm account". Kết quả: 39 unit + 6 tích hợp đạt.
+- **2026-11-21** — `ios.yml`: xanh. Run `44870630578` (`workflow_dispatch` trên nhánh `claude/row-22-ios-ci`) thành công, mọi bước đều xanh; lần chạy trước trên `main` (2026-10-29) cũng xanh. Không có lỗi để sửa (xem Dev Guide §6.1).
+- **2026-11-21** — Android (§6.2): khóa ký release đọc từ biến môi trường hoặc `~/.gradle/gradle.properties` ngoài repo. Đã xác minh trong cloud sau khi cho phép `dl.google.com`: `assembleRelease` chạy được, không ký cho ra APK chưa ký, có biến ký cho ra APK ký (kiểm chứng bằng `apksigner`). Tình trạng ảo hóa/emulator Android: không chạy được trong cloud, cần máy cục bộ (Dev Guide §6.3).
 - **2026-10-29** — Rà soát tài liệu với code: Android đã có đủ file màn hình (mục 4). Web đã sửa form khiếu nại cho khớp backend.

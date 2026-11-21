@@ -16,6 +16,7 @@ import com.rentgg.shared.crypto.CredentialCipher;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.error.DbErrors;
 import com.rentgg.shared.outbox.OutboxService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -53,11 +54,13 @@ public class GameAccountService {
     private final RentGgProperties props;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final MeterRegistry meters;
 
     public GameAccountService(GameAccountRepository accounts, CredentialVersionRepository credentials,
                               CredentialCipher cipher, UserService users, CatalogService catalog,
                               AbuseSignalService signals, AuditService audit, OutboxService outbox,
-                              ObjectMapper mapper, RentGgProperties props, TransactionTemplate tx, Clock clock) {
+                              ObjectMapper mapper, RentGgProperties props, TransactionTemplate tx, Clock clock,
+                              MeterRegistry meters) {
         this.accounts = accounts;
         this.credentials = credentials;
         this.cipher = cipher;
@@ -70,6 +73,7 @@ public class GameAccountService {
         this.props = props;
         this.tx = tx;
         this.clock = clock;
+        this.meters = meters;
     }
 
     // ---------------------------------------------------------------- owner actions
@@ -221,6 +225,11 @@ public class GameAccountService {
         a.setLoginHint(maskUsername(username), now);
         if (from != SUSPENDED_SECURITY_REVIEW && from != AVAILABLE) {
             Duration took = Duration.between(a.getSecurityStateChangedAt(), now);
+            if (a.getRotationDueAt() != null) {
+                // The window started SLA minutes before its due time (startRotationWindow), whatever state it went through.
+                Instant started = a.getRotationDueAt().minus(Duration.ofMinutes(props.rotation().slaMinutes()));
+                meters.timer("rentgg_rotation_duration_seconds").record(Duration.between(started, now));
+            }
             changeState(a, AVAILABLE, "ROTATION_COMPLETED");
             audit.record(ownerId, "ROTATION_COMPLETED", "GameAccount", accountId, Map.of("securityState", from.name()),
                     Map.of("securityState", AVAILABLE.name(), "credentialVersion", next, "durationSeconds", took.toSeconds()), null);
@@ -421,6 +430,7 @@ public class GameAccountService {
                 }
                 Instant due = a.getRotationDueAt();
                 changeState(a, ROTATION_OVERDUE, "ROTATION_SLA_EXCEEDED");
+                meters.counter("rentgg_rotation_overdue_total").increment();
                 signals.record(a.getOwnerId(), "ROTATION_OVERDUE", null, Map.of("gameAccountId", id.toString()));
                 outbox.record("GameAccount", id, "RotationOverdue",
                         Map.of("gameAccountId", id, "ownerId", a.getOwnerId(), "dueAt", due));

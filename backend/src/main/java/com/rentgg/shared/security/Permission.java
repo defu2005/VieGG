@@ -36,6 +36,7 @@ public enum Permission {
     LISTING_REVIEW_QUEUE("listing:review_queue", "Xem hàng đợi listing theo trạng thái"),
     LISTING_APPROVE("listing:approve", "Duyệt listing"),
     LISTING_REJECT("listing:reject", "Từ chối listing"),
+    LISTING_APPEAL_REVIEW("listing:appeal_review", "Xét kháng nghị kiểm duyệt listing"),
     LISTING_SUSPEND("listing:suspend", "Đình chỉ listing"),
 
     // --- game accounts
@@ -63,6 +64,7 @@ public enum Permission {
     WITHDRAWAL_MARK_PAID("withdrawal:mark_paid", "Đánh dấu đã chi"),
     WITHDRAWAL_MARK_FAILED("withdrawal:mark_failed", "Đánh dấu chi thất bại"),
     LEDGER_READ("ledger:read", "Xem sổ cái và đối soát"),
+    AUDIT_READ("audit:read", "Tra cứu nhật ký audit"),
 
     // --- dual approval (one request + one decide permission per ActionType)
     APPROVAL_LIST("approval:list", "Xem danh sách yêu cầu phê duyệt"),

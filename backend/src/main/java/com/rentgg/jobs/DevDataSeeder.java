@@ -183,8 +183,8 @@ public class DevDataSeeder implements ApplicationRunner {
         approvals.create(support, ActionType.SELLER_HOLD_EARLY_RELEASE,
                 Map.of("orderId", lateCancel.id().toString()), "TRUSTED_SELLER", "seed-hold-release");
 
-        log.info("Dev seed created. Users *@rentgg.dev (password {}). Orders: confirmed={} awaiting={} quickShort={} "
-                        + "quickLong={}. See docs/RentGG_Dev_Seed.md", DEV_PASSWORD, confirmed.id(), awaiting.id(),
+        log.info("Dev seed created. Users *@rentgg.dev (password is DevDataSeeder.DEV_PASSWORD). Orders: confirmed={} awaiting={} quickShort={} "
+                        + "quickLong={}. See docs/RentGG_Dev_Seed.md", confirmed.id(), awaiting.id(),
                 quickShort.id(), quickLong.id());
     }
 
@@ -248,8 +248,13 @@ public class DevDataSeeder implements ApplicationRunner {
         }
     }
 
-    /** Pays through the fake PSP, same path as the dev simulate-success endpoint. */
+    /**
+     * Pays through the fake PSP, same path as the dev simulate-success endpoint. The renter's wallet is topped up
+     * first with the amount the order needs, otherwise the payment fails on a fresh database.
+     */
     private OrderView paid(OrderView o) {
+        var topup = payments.createTopup(o.renterId(), o.amountToPay(), UUID.randomUUID().toString());
+        payments.simulateSuccess(topup.id(), o.renterId());
         var intent = orders.pay(o.renterId(), o.id(), UUID.randomUUID().toString());
         payments.simulateSuccess(intent.id(), o.renterId());
         return orders.getInternal(o.id());

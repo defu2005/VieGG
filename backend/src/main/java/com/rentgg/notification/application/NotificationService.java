@@ -28,49 +28,6 @@ public class NotificationService {
 
     private static final List<String> USER_KEYS = List.of("renterId", "ownerId", "userId", "sellerId", "openedBy");
 
-    private static final Map<String, String> TITLES = Map.ofEntries(
-            Map.entry("OrderCreated", "Đơn thuê đã được tạo"),
-            Map.entry("OrderPaid", "Thanh toán thành công"),
-            Map.entry("OrderAwaitingApproval", "Có đơn thuê cần bạn duyệt"),
-            Map.entry("OrderConfirmed", "Đơn thuê đã được xác nhận"),
-            Map.entry("OrderRejected", "Đơn thuê bị từ chối"),
-            Map.entry("OrderExpired", "Đơn thuê hết hạn thanh toán"),
-            Map.entry("OrderStarted", "Đơn thuê đã bắt đầu, thông tin đăng nhập đã sẵn sàng"),
-            Map.entry("OrderEndingSoon", "Đơn thuê sắp hết giờ"),
-            Map.entry("OrderEnded", "Đơn thuê đã kết thúc"),
-            Map.entry("OrderExtended", "Đơn thuê đã được gia hạn"),
-            Map.entry("OrderExtensionExpired", "Yêu cầu gia hạn đã hết hạn thanh toán"),
-            Map.entry("OrderExtensionFailed", "Gia hạn không thành công, tiền đã được hoàn lại"),
-            Map.entry("OrderCancelled", "Đơn thuê đã bị hủy"),
-            Map.entry("CredentialViewed", "Người thuê đã xem thông tin đăng nhập"),
-            Map.entry("HandoverConfirmed", "Người thuê đã đăng nhập thành công"),
-            Map.entry("OtpRequested", "Người thuê cần mã OTP"),
-            Map.entry("GameAccountStateChanged", "Trạng thái account thay đổi"),
-            Map.entry("RotationOverdue", "Quá hạn đổi mật khẩu"),
-            Map.entry("CredentialRotated", "Đã cập nhật mật khẩu mới"),
-            Map.entry("DepositStateChanged", "Trạng thái tiền cọc thay đổi"),
-            Map.entry("RefundCompleted", "Đã hoàn tiền vào ví"),
-            Map.entry("WalletToppedUp", "Nạp tiền vào ví thành công"),
-            Map.entry("RefundFailed", "Hoàn tiền thất bại"),
-            Map.entry("DisputeOpened", "Có khiếu nại mới"),
-            Map.entry("DisputeEvidenceAdded", "Khiếu nại có bằng chứng mới"),
-            Map.entry("DisputeResolved", "Khiếu nại đã được phân xử"),
-            Map.entry("SellerHoldReleased", "Doanh thu đã khả dụng"),
-            Map.entry("WithdrawalRequested", "Yêu cầu rút tiền mới"),
-            Map.entry("WithdrawalPaid", "Rút tiền thành công"),
-            Map.entry("WithdrawalFailed", "Rút tiền thất bại"),
-            Map.entry("ListingStatusChanged", "Trạng thái listing thay đổi"),
-            Map.entry("ListingSubmittedForReview", "Có listing mới chờ duyệt"),
-            Map.entry("GameAccountPendingVerification", "Có account game mới chờ xác minh"),
-            Map.entry("GameTosStatusChanged", "Trạng thái game thay đổi"),
-            Map.entry("ApprovalRequested", "Có yêu cầu phê duyệt mới"),
-            Map.entry("ApprovalDecided", "Yêu cầu phê duyệt đã có kết quả"),
-            Map.entry("UserStatusChanged", "Trạng thái tài khoản thay đổi"),
-            Map.entry("SupportTicketOpened", "Có yêu cầu hỗ trợ mới"),
-            Map.entry("SupportMessagePosted", "Tin nhắn mới trong yêu cầu hỗ trợ"),
-            Map.entry("SupportParticipantAdded", "Bạn được mời vào một cuộc trò chuyện hỗ trợ"),
-            Map.entry("SupportTicketStatusChanged", "Yêu cầu hỗ trợ đã được cập nhật"));
-
     /** Events that also fan out to a staff role. */
     private static final Map<String, String> STAFF_FANOUT = Map.of(
             "DisputeOpened", "SUPPORT",
@@ -98,10 +55,11 @@ public class NotificationService {
 
     @EventListener
     public void on(DomainEvent event) {
-        String title = TITLES.get(event.eventType());
-        if (title == null) {
+        NotificationTemplates.Template template = NotificationTemplates.forEvent(event.eventType()).orElse(null);
+        if (template == null) {
             return;
         }
+        String title = template.title();
         Set<UUID> recipients = new LinkedHashSet<>();
         for (String key : USER_KEYS) {
             UUID id = event.uuid(key);
@@ -134,7 +92,7 @@ public class NotificationService {
         }
         String data = toJson(event.payload());
         String subject = event.string("subject");
-        String body = event.eventType().startsWith("Support") && subject != null ? subject : title;
+        String body = event.eventType().startsWith("Support") && subject != null ? subject : template.body();
         for (UUID userId : recipients) {
             jdbc.update("""
                     insert into notifications (id, user_id, event_id, type, title, body, data, created_at)

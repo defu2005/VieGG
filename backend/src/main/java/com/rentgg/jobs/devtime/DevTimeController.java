@@ -116,7 +116,7 @@ public class DevTimeController {
     }
 
     private Tokens tokens() {
-        AuthService.Tokens t = auth.reissueAfterDevTimeTravel(CurrentUser.id());
+        AuthService.Tokens t = auth.reissueAfterDevTimeTravel(CurrentUser.id(), CurrentUser.mfaVerified());
         return new Tokens(t.accessToken(), t.accessTokenExpiresAt(), t.refreshToken(), t.refreshTokenExpiresAt());
     }
 }

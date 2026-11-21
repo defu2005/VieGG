@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { StaffMfaPanel } from './StaffMfaPanel';
 
 /** Redirects anonymous visitors to /login and remembers where they were going. */
 export function RequireAuth({ children }: { children: ReactNode }) {
@@ -11,10 +12,16 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Shows the page only to users holding at least one of the given permissions. */
+/**
+ * Shows the page only to users holding at least one of the given permissions. A staff session that has not passed the
+ * second factor has no permissions, so it gets the MFA panel instead of "no permission".
+ */
 export function RequirePermission({ anyOf, children }: { anyOf: string[]; children: ReactNode }) {
-  const { can } = useAuth();
-  if (!can(...anyOf)) return <p className="error">Bạn không có quyền truy cập trang này.</p>;
+  const { can, me } = useAuth();
+  if (!can(...anyOf)) {
+    if (me?.staff && me.mfa?.required && !me.mfa.verified) return <StaffMfaPanel />;
+    return <p className="error">Bạn không có quyền truy cập trang này.</p>;
+  }
   return <>{children}</>;
 }
 

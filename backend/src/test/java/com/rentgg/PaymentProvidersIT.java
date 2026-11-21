@@ -42,15 +42,23 @@ class PaymentProvidersIT extends IntegrationTest {
                 .andExpect(jsonPath("$[0].code").value("FAKE"))
                 .andExpect(jsonPath("$[?(@.code == 'VNPAY')]").exists())
                 .andExpect(jsonPath("$[?(@.code == 'ZALOPAY')]").exists())
-                .andExpect(jsonPath("$[?(@.code == 'MOMO')]").doesNotExist())
-                .andExpect(jsonPath("$[?(@.code == 'PAYOS')]").doesNotExist());
+                // MoMo and PayOS have test keys in application-test.yml, so they are offered too.
+                .andExpect(jsonPath("$[?(@.code == 'MOMO')]").exists())
+                .andExpect(jsonPath("$[?(@.code == 'PAYOS')]").exists());
 
+        // PayOS is configured against a closed loopback port: the checkout call fails and the top-up is a 502.
         mvc.perform(post("/api/v1/wallet/topups").header("Authorization", bearer(u))
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":100000,\"provider\":\"PAYOS\"}"))
+                .andExpect(status().isBadGateway());
+        mvc.perform(post("/api/v1/payments/webhook/momo").content("{}")).andExpect(status().isBadRequest());
+        // Unknown provider: the webhook path is 404; a top-up naming it is refused as unavailable (400).
+        mvc.perform(post("/api/v1/payments/webhook/stripe").content("{}")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/wallet/topups").header("Authorization", bearer(u))
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":100000,\"provider\":\"STRIPE\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PAYMENT_PROVIDER_UNAVAILABLE"));
-        mvc.perform(post("/api/v1/payments/webhook/momo").content("{}")).andExpect(status().isNotFound());
     }
 
     @Test

@@ -85,8 +85,8 @@ public class SecurityConfig {
 
     /** Roles and permissions come from the database per request (cached), not from the token claims. */
     @Bean
-    PermissionJwtConverter permissionJwtConverter(ObjectProvider<AuthorityResolver> resolver) {
-        return new PermissionJwtConverter(resolver);
+    PermissionJwtConverter permissionJwtConverter(ObjectProvider<AuthorityResolver> resolver, RentGgProperties props) {
+        return new PermissionJwtConverter(resolver, props.security().staffMfaRequired());
     }
 
     @Bean

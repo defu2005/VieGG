@@ -410,6 +410,7 @@ public class PaymentService {
                 n++;
             } catch (RuntimeException e) {
                 log.warn("Refund retry {} failed: {}", id, e.toString());
+                meters.counter("rentgg_refunds_total", "kind", r.getKind(), "result", "failed").increment();
             }
         }
         return n;

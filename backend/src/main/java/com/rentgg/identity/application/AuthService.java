@@ -36,9 +36,12 @@ public class AuthService {
     private final AuditService audit;
     private final RentGgProperties props;
     private final Clock clock;
+    private final AuthorityService authz;
+    private final TotpService totp;
 
     public AuthService(UserRepository users, RefreshTokenRepository refreshTokens, PasswordEncoder passwordEncoder,
-                       JwtService jwt, UserService userService, AuditService audit, RentGgProperties props, Clock clock) {
+                       JwtService jwt, UserService userService, AuditService audit, RentGgProperties props, Clock clock,
+                       AuthorityService authz, TotpService totp) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.passwordEncoder = passwordEncoder;
@@ -47,6 +50,8 @@ public class AuthService {
         this.audit = audit;
         this.props = props;
         this.clock = clock;
+        this.authz = authz;
+        this.totp = totp;
     }
 
     @Transactional
@@ -66,8 +71,22 @@ public class AuthService {
         return UserView.of(u);
     }
 
-    @Transactional
-    public Tokens login(String email, String password) {
+    /**
+     * Staff with an enrolled authenticator must send a TOTP code ({@code MFA_REQUIRED} when missing, {@code MFA_INVALID}
+     * or {@code MFA_LOCKED} when wrong). A failed code is recorded, so this must not roll back on ApiException.
+     * Staff without an authenticator log in unverified: they can enrol, but get no staff permissions yet.
+     */
+    /** True when the password is the account's RentGG password (used to re-confirm identity, D5). */
+    @Transactional(readOnly = true)
+    public boolean passwordMatches(UUID userId, String password) {
+        if (password == null || password.isEmpty()) {
+            return false;
+        }
+        return users.findById(userId).map(u -> passwordEncoder.matches(password, u.getPasswordHash())).orElse(false);
+    }
+
+    @Transactional(noRollbackFor = ApiException.class)
+    public Tokens login(String email, String password, String totpCode) {
         User u = users.findByEmail(email.trim().toLowerCase()).orElse(null);
         if (u == null || !passwordEncoder.matches(password, u.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email hoặc mật khẩu không đúng.");
@@ -75,10 +94,23 @@ public class AuthService {
         if (u.getStatus() == UserStatus.SUSPENDED) {
             throw ApiException.forbidden("USER_SUSPENDED", "Tài khoản của bạn đang bị đình chỉ.");
         }
-        if (u.getRoles().stream().anyMatch(r -> !r.equals("USER"))) {
-            audit.record(u.getId(), "STAFF_LOGIN", "User", u.getId(), null, Map.of("roles", u.getRoles().toString()), null);
+        boolean staff = authz.fresh(u.getId()).staff();
+        boolean mfa = false;
+        if (staff && props.security().staffMfaRequired() && totp.isEnrolled(u.getId())) {
+            if (totpCode == null || totpCode.isBlank()) {
+                throw new ApiException(HttpStatus.UNAUTHORIZED, "MFA_REQUIRED", "Nhập mã xác thực hai bước.");
+            }
+            switch (totp.verify(u.getId(), totpCode, clock.instant())) {
+                case OK -> mfa = true;
+                case LOCKED -> throw new ApiException(HttpStatus.UNAUTHORIZED, "MFA_LOCKED",
+                        "Tạm khoá do nhập sai mã nhiều lần. Thử lại sau 15 phút.");
+                default -> throw new ApiException(HttpStatus.UNAUTHORIZED, "MFA_INVALID", "Mã xác thực không đúng.");
+            }
         }
-        return issue(u);
+        if (staff) {
+            audit.record(u.getId(), "STAFF_LOGIN", "User", u.getId(), null, Map.of("roles", u.getRoles().toString(), "mfa", mfa), null);
+        }
+        return issue(u, mfa);
     }
 
     @Transactional(noRollbackFor = ApiException.class)
@@ -102,7 +134,7 @@ public class AuthService {
         if (u.getStatus() == UserStatus.SUSPENDED) {
             throw ApiException.forbidden("USER_SUSPENDED", "Tài khoản của bạn đang bị đình chỉ.");
         }
-        Tokens next = issue(u);
+        Tokens next = issue(u, token.isMfaVerified());
         token.revoke(now, next.refreshTokenId());
         return next;
     }
@@ -129,7 +161,7 @@ public class AuthService {
      * Returns fresh tokens so the device that made the change stays logged in.
      */
     @Transactional
-    public Tokens changePassword(UUID userId, String currentPassword, String newPassword) {
+    public Tokens changePassword(UUID userId, String currentPassword, String newPassword, boolean mfaVerified) {
         if (newPassword == null || newPassword.length() < 10) {
             throw ApiException.badRequest("VALIDATION_ERROR", "Mật khẩu mới tối thiểu 10 ký tự.");
         }
@@ -144,7 +176,7 @@ public class AuthService {
         u.setPasswordHash(passwordEncoder.encode(newPassword), now);
         refreshTokens.revokeAllForUser(userId, now);
         audit.record(userId, "PASSWORD_CHANGED", "User", userId, null, null, null);
-        return issue(u);
+        return issue(u, mfaVerified);
     }
 
     /**
@@ -152,17 +184,17 @@ public class AuthService {
      * user, so moving the clock past the token lifetimes does not log the tester out.
      */
     @Transactional
-    public Tokens reissueAfterDevTimeTravel(UUID userId) {
-        return issue(users.findById(userId).orElseThrow());
+    public Tokens reissueAfterDevTimeTravel(UUID userId, boolean mfaVerified) {
+        return issue(users.findById(userId).orElseThrow(), mfaVerified);
     }
 
-    private Tokens issue(User u) {
-        JwtService.IssuedToken access = jwt.issueAccessToken(u.getId(), u.getRoles(), u.getStatus().name());
+    private Tokens issue(User u, boolean mfaVerified) {
+        JwtService.IssuedToken access = jwt.issueAccessToken(u.getId(), u.getRoles(), u.getStatus().name(), mfaVerified);
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         Instant now = clock.instant();
-        RefreshToken rt = new RefreshToken(u.getId(), Hmac.sha256(raw), now.plus(props.security().refreshTokenTtl()), now);
+        RefreshToken rt = new RefreshToken(u.getId(), Hmac.sha256(raw), now.plus(props.security().refreshTokenTtl()), now, mfaVerified);
         refreshTokens.save(rt);
         return new Tokens(access.value(), access.expiresAt(), raw, rt.getExpiresAt(), rt.getId());
     }

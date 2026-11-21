@@ -2,8 +2,19 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
+    <!-- Text output (dev, test): %m and %wEx are masked by these converters; the console appender is ours (MDC keys), see below. -->
+    <conversionRule conversionWord="m" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="msg" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="message" converterClass="com.rentgg.shared.logging.MaskingMessageConverter"/>
+    <conversionRule conversionWord="wEx" converterClass="com.rentgg.shared.logging.MaskingThrowableConverter"/>
+
     <springProfile name="dev,test">
-        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+        <!-- Like the stock console appender, plus the MDC correlation keys (traceId, userId, orderId). -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] [%X{userId:-}] [%X{orderId:-}] %logger{36} - %m%n%wEx</pattern>
+            </encoder>
+        </appender>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
@@ -16,6 +27,9 @@
                 <includeMdcKeyName>userId</includeMdcKeyName>
                 <includeMdcKeyName>orderId</includeMdcKeyName>
                 <includeMdcKeyName>requestPath</includeMdcKeyName>
+                <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+                    <valueMasker class="com.rentgg.shared.logging.SensitiveJsonValueMasker"/>
+                </jsonGeneratorDecorator>
             </encoder>
         </appender>
         <root level="INFO">

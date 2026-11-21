@@ -369,6 +369,7 @@ public class ListingService {
             throw ApiException.invalidState("Listing không ở trạng thái chờ duyệt.");
         }
         move(l, REJECTED, note);
+        recordDecision(listingId, "REJECTED", note, adminId);
         audit.record(adminId, "LISTING_REJECTED", "Listing", listingId, Map.of("status", "PENDING_REVIEW"),
                 Map.of("status", "REJECTED", "note", note), null);
         return view(l);
@@ -388,9 +389,52 @@ public class ListingService {
         }
         ListingStatus from = l.getStatus();
         move(l, SUSPENDED, reasonCode);
+        recordDecision(listingId, "SUSPENDED", reasonCode, adminId);
         audit.record(adminId, "LISTING_SUSPENDED", "Listing", listingId, Map.of("status", from.name()),
                 Map.of("status", "SUSPENDED"), reasonCode);
         return view(l);
+    }
+
+    /**
+     * Puts a listing that was rejected or suspended back in the review queue after its owner's appeal was accepted.
+     * It does not publish the listing: a staff member still approves it.
+     */
+    @Transactional
+    public ListingView reopenAfterAppeal(UUID adminId, UUID listingId, String note) {
+        Listing l = listings.findForUpdate(listingId).orElseThrow(() -> ApiException.notFound("Listing"));
+        if (l.getStatus() != REJECTED && l.getStatus() != SUSPENDED) {
+            throw ApiException.invalidState("Listing không còn ở trạng thái bị từ chối hoặc đình chỉ.");
+        }
+        ListingStatus from = l.getStatus();
+        move(l, PENDING_REVIEW, note);
+        audit.record(adminId, "LISTING_REOPENED_AFTER_APPEAL", "Listing", listingId, Map.of("status", from.name()),
+                Map.of("status", "PENDING_REVIEW"), null);
+        return view(l);
+    }
+
+    /** Owner-facing list of the rejections and suspensions of one listing, with the caller's appeal status. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> decisionsOf(UUID callerId, UUID listingId) {
+        List<UUID> owners = jdbc.getJdbcOperations().queryForList(
+                "select owner_id from listings where id = ?", UUID.class, listingId);
+        if (owners.isEmpty() || !owners.get(0).equals(callerId)) {
+            throw ApiException.notFound("Listing");
+        }
+        return jdbc.queryForList("""
+                select d.id, d.kind, d.note, d.decided_at as \"decidedAt\", a.id as \"appealId\", a.status as \"appealStatus\"
+                  from listing_moderation_decisions d
+                  left join listing_appeals a on a.decision_id = d.id and a.appellant_id = :caller
+                 where d.listing_id = :listing
+                 order by d.decided_at desc
+                """, Map.of("caller", callerId, "listing", listingId));
+    }
+
+    private void recordDecision(UUID listingId, String kind, String note, UUID decidedBy) {
+        jdbc.update("""
+                insert into listing_moderation_decisions (id, listing_id, kind, note, decided_by, decided_at)
+                values (:id, :listing, :kind, :note, :by, :at)
+                """, Map.of("id", UUID.randomUUID(), "listing", listingId, "kind", kind,
+                "note", note == null ? "" : note, "by", decidedBy, "at", java.sql.Timestamp.from(clock.instant())));
     }
 
     @Transactional(readOnly = true)

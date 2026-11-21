@@ -53,6 +53,14 @@ public class JobScheduler {
     public void markRotationOverdue() { jobs.markRotationOverdue(); }
 
     @Scheduled(cron = "${rentgg.jobs.cron}")
+    @SchedulerLock(name = "markDisputeDeadlinesOverdue", lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
+    public void markDisputeDeadlinesOverdue() { jobs.markDisputeDeadlinesOverdue(); }
+
+    @Scheduled(cron = "${rentgg.jobs.cron}")
+    @SchedulerLock(name = "markLegalNoticeDeadlines", lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
+    public void markLegalNoticeDeadlines() { jobs.markLegalNoticeDeadlines(); }
+
+    @Scheduled(cron = "${rentgg.jobs.cron}")
     @SchedulerLock(name = "retryFailedRefunds", lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
     public void retryFailedRefunds() { jobs.retryFailedRefunds(); }
 

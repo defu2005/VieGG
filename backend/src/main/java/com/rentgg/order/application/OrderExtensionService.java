@@ -24,9 +24,11 @@ import com.rentgg.payment.application.PaymentService;
 import com.rentgg.shared.error.ApiException;
 import com.rentgg.shared.error.DbErrors;
 import com.rentgg.shared.outbox.OutboxService;
+import com.rentgg.shared.web.RequestLogContext;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -328,13 +330,15 @@ public class OrderExtensionService {
     public int expireUnpaid(int batch) {
         int n = 0;
         for (UUID orderId : extensions.findOrdersWithExpiredExtension(clock.instant(), batch)) {
-            try {
-                Boolean done = tx.execute(s -> orders.lockForJob(orderId).map(this::expireIfDue).orElse(false));
-                if (Boolean.TRUE.equals(done)) {
-                    n++;
+            try (MDC.MDCCloseable ignored = MDC.putCloseable(RequestLogContext.ORDER_ID, orderId.toString())) {
+                try {
+                    Boolean done = tx.execute(s -> orders.lockForJob(orderId).map(this::expireIfDue).orElse(false));
+                    if (Boolean.TRUE.equals(done)) {
+                        n++;
+                    }
+                } catch (RuntimeException ex) {
+                    log.error("Extension expiry failed for order {}", orderId, ex);
                 }
-            } catch (RuntimeException ex) {
-                log.error("Extension expiry failed for order {}", orderId, ex);
             }
         }
         return n;

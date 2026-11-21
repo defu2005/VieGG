@@ -28,7 +28,8 @@ public class JwtService {
         this.clock = clock;
     }
 
-    public IssuedToken issueAccessToken(UUID userId, Collection<String> roles, String status) {
+    /** {@code mfa}: the session passed the second factor (TOTP); read by PermissionJwtConverter for staff. */
+    public IssuedToken issueAccessToken(UUID userId, Collection<String> roles, String status, boolean mfa) {
         Instant now = clock.instant();
         Instant exp = now.plus(props.security().accessTokenTtl());
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -36,6 +37,7 @@ public class JwtService {
                 .subject(userId.toString())
                 .claim("roles", List.copyOf(roles))
                 .claim("status", status)
+                .claim("mfa", mfa)
                 .issuedAt(now)
                 .expiresAt(exp)
                 .id(UUID.randomUUID().toString())

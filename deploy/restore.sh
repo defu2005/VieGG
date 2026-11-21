@@ -29,5 +29,6 @@ $DC run --rm -e DUMP="$1" --entrypoint sh backup -c '
          RCLONE_CONFIG_R2_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY" RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_KEY"
   rclone copyto "r2:$BACKUP_S3_BUCKET/db/$DUMP" /tmp/restore.dump
   pg_restore --list /tmp/restore.dump >/dev/null
-  pg_restore --clean --if-exists --no-owner -1 -d rentgg /tmp/restore.dump'
+  # --role: bảng và sequence thuộc rentgg_migrator (không phải superuser), để Flyway và quyền của rentgg_app vẫn đúng.
+  pg_restore --clean --if-exists --no-owner --role=rentgg_migrator -1 -d rentgg /tmp/restore.dump'
 echo "Xong. Kiểm tra ứng dụng và đối soát ledger trước khi mở lại giao dịch."

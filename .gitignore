@@ -22,3 +22,8 @@ Thumbs.db
 
 # Production secrets
 deploy/.env.prod
+
+# Khóa ký Android: không đưa vào repo (Dev Guide §6.2)
+*.keystore
+*.p12
+keystore.properties
