@@ -25,6 +25,7 @@ public class Jobs {
     private static final Logger log = LoggerFactory.getLogger(Jobs.class);
 
     private final OrderJobs orderJobs;
+    private final com.rentgg.dispute.application.DisputeService disputes;
     private final DepositService deposits;
     private final WalletService wallet;
     private final GameAccountService gameAccounts;
@@ -34,7 +35,9 @@ public class Jobs {
     private final RentGgProperties props;
 
     public Jobs(OrderJobs orderJobs, DepositService deposits, WalletService wallet, GameAccountService gameAccounts,
-                PaymentService payments, OutboxService outbox, MeterRegistry meters, RentGgProperties props) {
+                PaymentService payments, OutboxService outbox, MeterRegistry meters, RentGgProperties props,
+                com.rentgg.dispute.application.DisputeService disputes) {
+        this.disputes = disputes;
         this.orderJobs = orderJobs;
         this.deposits = deposits;
         this.wallet = wallet;
@@ -73,6 +76,10 @@ public class Jobs {
 
     public int retryFailedRefunds() { return run("retryFailedRefunds", () -> payments.retryFailedRefunds(batch())); }
 
+    public int markDisputeDeadlinesOverdue() {
+        return run("markDisputeDeadlinesOverdue", () -> disputes.markDeadlinesOverdue(batch()));
+    }
+
     public int publishOutbox() { return run("publishOutbox", outbox::publishPending); }
 
     /** Convenience for tests and the dev endpoint: one full cycle in a sensible order. */
@@ -87,6 +94,7 @@ public class Jobs {
         releaseDeposits();
         markRotationOverdue();
         retryFailedRefunds();
+        markDisputeDeadlinesOverdue();
         publishOutbox();
     }
 

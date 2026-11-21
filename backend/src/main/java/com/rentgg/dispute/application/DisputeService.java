@@ -105,6 +105,26 @@ public class DisputeService implements OrderLifecycleListener {
 
     // ================================================================= open
 
+    /**
+     * Dispute deadline job (§3 mục 14): an OPEN dispute past its deadline_at gets deadline_overdue_at once and a
+     * DisputeDeadlineOverdue outbox event. The decision itself stays with support.
+     */
+    @Transactional
+    public int markDeadlinesOverdue(int batchSize) {
+        Instant now = clock.instant();
+        int n = 0;
+        for (UUID id : disputes.findOverdueCandidates(now, Pageable.ofSize(batchSize))) {
+            var d = disputes.findForUpdate(id).orElse(null);
+            if (d == null || !d.markDeadlineOverdue(now)) {
+                continue;
+            }
+            outbox.record("Dispute", id, "DisputeDeadlineOverdue", Map.of("disputeId", id, "orderId", d.getOrderId(),
+                    "deadlineAt", d.getDeadlineAt()));
+            n++;
+        }
+        return n;
+    }
+
     @Transactional
     public DisputeView open(UUID callerId, UUID orderId, DisputeType type, String description, List<String> evidenceUrls) {
         return open(callerId, orderId, type, (UUID) null, description, evidenceUrls);

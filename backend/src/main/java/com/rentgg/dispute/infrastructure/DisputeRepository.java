@@ -24,6 +24,9 @@ public interface DisputeRepository extends JpaRepository<Dispute, UUID> {
 
     List<Dispute> findByOrderIdOrderByCreatedAt(UUID orderId);
 
+    @Query("select d.id from Dispute d where d.status = 'OPEN' and d.deadlineOverdueAt is null and d.deadlineAt <= :now order by d.deadlineAt")
+    List<UUID> findOverdueCandidates(@Param("now") java.time.Instant now, org.springframework.data.domain.Pageable page);
+
     boolean existsByOrderIdAndTypeAndStatus(UUID orderId, DisputeType type, DisputeStatus status);
 
     @Query("select count(d) > 0 from Dispute d where d.orderId = :orderId and d.status = 'OPEN' and d.type = :type and d.riskId = :riskId")
