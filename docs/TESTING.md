@@ -93,6 +93,28 @@ Web không có test đơn vị tự động (UNKNOWN: chưa tìm thấy script t
 - Bằng chứng ảnh và video của các lần chạy nằm trên nhánh `claude/e2e-evidence-store`, thư mục `e2e-evidence/`.
 - Trạng thái: PARTIAL. Chạy được trên môi trường có backend và web; chưa được đưa vào CI.
 
+### Các luồng đã có (script trên PR #30, script chưa vào `dev`)
+
+Ngày kiểm tra **2026-11-21**, script commit `685c0ca`. Các luồng: F1 sai mật khẩu, F2 người thuê xem đơn, F3 admin xem kiểm duyệt, F4 chủ duyệt đơn, F5 thanh toán ví, F6 tua 🕒 +1 ngày rồi về giờ thật, F7 admin từ chối bài đăng.
+
+Lệnh chạy (cần backend profile `dev` ở cổng 8080 và web ở cổng 5273, DB `rentgg_e2e` mới cho mỗi lần):
+
+```bash
+cd frontend
+E2E_PASSWORD=<mật khẩu seed dev> node e2e/web-evidence.cjs <thư mục ra> [--expect-fail]
+```
+
+Biến tùy chọn: `E2E_BASE` (mặc định `http://localhost:5273`). Thư mục ra nhận ảnh, `video/*.webm` và `results.json`. `--expect-fail` đảo kết quả để kiểm tra script có đỏ khi kỳ vọng sai (negative control).
+
+Kết quả đã ghi:
+
+| Lần chạy | Kết quả | Exit | Ghi chú |
+| --- | --- | --- | --- |
+| run 11 | 8/8 | 0 | Lần sạch, có F5–F7 |
+| negative 6 (`--expect-fail`) | 3/8 | 1 | Đỏ đúng chỗ ở F2, F3, F5, F6, F7 |
+
+Chưa phủ: thanh toán PSP thật, hoàn tiền PSP thật, kiểm thử trên thiết bị hoặc simulator. Chưa đưa vào CI.
+
 ## Quy ước khi thêm test
 
 - Test database đi qua Flyway, không tạo bảng bằng tay.
