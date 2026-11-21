@@ -351,12 +351,12 @@ tbody tr:hover {
 
 .hero .btn-light {
   background: #fff;
-  color: var(--primary);
+  color: #b84a00;
   box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
 }
 
 .hero .btn-light:hover {
-  color: color-mix(in srgb, var(--primary) 80%, #000);
+  color: #8f3900;
   transform: translateY(-1px);
 }
 
