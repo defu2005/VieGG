@@ -27,6 +27,7 @@ export function OrderDetailPage() {
   const { me, can } = useAuth();
 
   const [data, setData] = useState<OrderDetail | null>(null);
+  const [games, setGames] = useState<GameView[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Set when we arrive from "Đặt và thanh toán" and paying from the wallet failed (usually not enough balance).
   const location = useLocation();
@@ -48,6 +49,11 @@ export function OrderDetailPage() {
       .then(setData)
       .catch((err) => setLoadError(errorMessage(err)));
   }, [id]);
+
+  useEffect(() => {
+    api<GameView[]>('/games').then(setGames).catch(() => setGames([]));
+    // tên game chỉ là phần bổ sung; lỗi tải không chặn trang đơn
+  }, []);
 
   useEffect(() => {
     load();
@@ -155,7 +161,12 @@ export function OrderDetailPage() {
 
       <section className="card">
         <div className="row spread">
-          <h1>Đơn {o.id.slice(0, 8)}</h1>
+          <div>
+            <h1>Đơn {o.id.slice(0, 8)}</h1>
+            {games.find((g) => g.id === o.gameId) && (
+              <p className="muted" style={{ margin: 0 }}>{games.find((g) => g.id === o.gameId)?.name}</p>
+            )}
+          </div>
           <StatusBadge status={o.status} />
         </div>
         <OrderStepper status={o.status} />

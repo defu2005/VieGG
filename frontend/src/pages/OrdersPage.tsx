@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { Order, OrderStatus } from '../api/types';
+import { api } from '../api/client';
+import type { GameView, Order, OrderStatus } from '../api/types';
 import { Countdown } from '../components/Countdown';
 import { PageHelp } from '../components/PageHelp';
 import { Pager, usePaged } from '../components/Pager';
@@ -27,6 +28,10 @@ export function OrdersPage() {
   if (status) query.set('status', status);
   const paged = usePaged<Order>(`/orders?${query}`, { onError: (err) => setError(errorMessage(err)) });
   const orders = paged.items;
+  const [games, setGames] = useState<GameView[]>([]);
+  useEffect(() => {
+    api<GameView[]>('/games').then(setGames).catch(() => setGames([]));
+  }, []);
 
   return (
     <div className="stack">
@@ -92,6 +97,9 @@ export function OrdersPage() {
                 <tr key={o.id}>
                   <td>
                     <Link to={`/orders/${o.id}`}>{o.id.slice(0, 8)}</Link>
+                    {games.find((g) => g.id === o.gameId) && (
+                      <div className="muted">{games.find((g) => g.id === o.gameId)?.name}</div>
+                    )}
                   </td>
                   <td>{formatDateTime(o.startAt)}</td>
                   <td>{formatDateTime(o.scheduledEndAt)}</td>
