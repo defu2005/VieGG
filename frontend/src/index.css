@@ -662,8 +662,8 @@ h2 {
 .help-box {
   padding: 0.8rem 1rem;
   border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   font-size: 0.93rem;
 }
 
