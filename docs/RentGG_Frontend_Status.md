@@ -43,6 +43,8 @@ Phân quyền ở giao diện chỉ để ẩn và chặn điều hướng. Quy�
 
 Lưu ý về nguồn tham khảo: trang zuhaowan.com là ứng dụng JavaScript và không hiển thị được trong trình duyệt tích hợp, còn tìm kiếm web chỉ cho thông tin bên ngoài. Vì vậy các cải tiến dưới đây dựa trên mẫu giao diện phổ biến của nhóm sàn thuê account, **không phải sao chép từ trang cụ thể nào**.
 
+**Trạng thái (2026-11-21):** giao diện tối làm mặc định, cam chỉ cho hành động và giá (quyết định D-24 trong `DECISIONS.md`, nhánh `claude/vigilant-heisenberg-xp4z0i`). Đã xem bằng ảnh chụp: trang chủ, danh sách đơn, đơn hàng, ví, admin, chi tiết. Ở 1280px: cả bảy trang. Ở 390px: trang chủ, danh sách đơn, đơn hàng, ví, admin, chi tiết. Không tràn ngang trên bảy trang ở cả hai kích thước. Chưa xem ở chế độ sáng (không còn là mặc định, chưa có nút chuyển). Tên game hiện trên đơn lấy từ `/games` vì API đơn không trả tên.
+
 | Khu vực | Cải tiến |
 |---|---|
 | Trang chủ | Banner, lưới game, danh sách account giá tốt, hướng dẫn 3 bước, thanh bảo đảm (mã hóa mật khẩu, cọc riêng từng đơn, đổi mật khẩu sau mỗi lượt, khiếu nại), lời mời đăng account cho thuê |
