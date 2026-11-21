@@ -101,17 +101,27 @@ Lệnh chạy (cần backend profile `dev` ở cổng 8080 và web ở cổng 52
 
 ```bash
 cd frontend
-E2E_PASSWORD=<mật khẩu seed dev> node e2e/web-evidence.cjs <thư mục ra> [--expect-fail]
+node e2e/web-evidence.cjs <thư mục ra> [--expect-fail]
 ```
 
-Biến tùy chọn: `E2E_BASE` (mặc định `http://localhost:5273`). Thư mục ra nhận ảnh, `video/*.webm` và `results.json`. `--expect-fail` đảo kết quả để kiểm tra script có đỏ khi kỳ vọng sai (negative control).
+Biến môi trường (tùy chọn):
+- `E2E_BASE`: mặc định `http://localhost:5273`.
+- `E2E_PASSWORD`: mặc định là giá trị của hằng `DevDataSeeder.DEV_PASSWORD` (chỉ dùng cho DB dev có seed). Đặt biến này khi DB dùng mật khẩu khác.
 
-Kết quả đã ghi:
+Thư mục ra nhận ảnh, `video/*.webm` và `results.json`.
+
+**Cảnh báo:** không chạy trên DB `rentgg` dùng chung. Script ghi dữ liệu thật trong DB: thanh toán ví (F5) và từ chối bài đăng (F7). F6 tua đồng hồ dev thêm một ngày rồi về giờ thật ở cuối; nếu script bị dừng giữa chừng, đồng hồ dev sẽ lệch. Chạy trên DB riêng (ví dụ `rentgg_e2e`) và xoá `backend/target/dev-clock-*.properties` trước khi chạy lại.
+
+`--expect-fail` (negative control) không đảo kết quả. Nó thay một kỳ vọng bằng giá trị sai có chủ đích (ví dụ đòi nhãn "Chờ thanh toán" còn sau khi đã thanh toán, hoặc nhập lý do từ chối khác), để kiểm tra luồng tương ứng có đỏ đúng chỗ. Lần chạy âm tính phải thoát với exit 1.
+
+Kết quả đã ghi (8 điểm kiểm trên 7 luồng; F2 có hai điểm kiểm):
 
 | Lần chạy | Kết quả | Exit | Ghi chú |
 | --- | --- | --- | --- |
 | run 11 | 8/8 | 0 | Lần sạch, có F5–F7 |
-| negative 6 (`--expect-fail`) | 3/8 | 1 | Đỏ đúng chỗ ở F2, F3, F5, F6, F7 |
+| negative 6 (`--expect-fail`) | 3/8 | 1 | Đỏ đúng chỗ ở F2 (xác minh), F3 (tiêu đề), F5, F6, F7 |
+
+Bằng chứng ảnh của F7 (chủ thấy lý do) chỉ kiểm qua assert chữ; ảnh `f7-owner-sees-reason.png` không hiển thị lý do ở vùng đang cuộn.
 
 Chưa phủ: thanh toán PSP thật, hoàn tiền PSP thật, kiểm thử trên thiết bị hoặc simulator. Chưa đưa vào CI.
 
