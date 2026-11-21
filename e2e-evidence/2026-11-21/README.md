@@ -19,7 +19,7 @@ Mỗi lần chạy trên DB `rentgg_e2e` mới (drop/create + khởi động l�
 | `e2e-run6/` | 5/5 | — | Chạy trên DB đã dùng một lần; chỉ tham khảo |
 | `e2e-negative3/` | — | — | **Đã thay thế** bởi `e2e-negative4/` (DB đã dùng, F4 đỏ sai nguyên nhân) |
 
-Chưa phủ (không tự động hóa trong lần này): thanh toán của người thuê, tua thời gian (🕒), admin từ chối bài đăng, kiểm thử mobile/simulator (không có máy được gắn vào phiên).
+Chưa phủ (không tự động hóa trong lần này): kiểm thử mobile/simulator (không có máy được gắn vào phiên). Thanh toán của người thuê, tua thời gian (🕒) và admin từ chối bài đăng đã phủ ở lần chạy 11, xem bên dưới.
 
 ## Lần chạy 10 (DB mới, script `frontend/e2e/web-evidence.cjs` sau khi sửa tour)
 
@@ -38,4 +38,11 @@ Chưa phủ (không tự động hóa trong lần này): thanh toán của ngư�
 Lưu ý:
 - `e2e-negative5/` không được dùng làm bằng chứng. Lần đó bị dừng giữa chừng, nên F5–F7 báo `Target page … has been closed`, không phải do kỳ vọng sai. Thư mục không được đưa vào nhánh này.
 - F6 trong lần âm tính luôn đỏ có chủ đích, và để đồng hồ dev lệch. Lần chạy kế tiếp xoá `backend/target/dev-clock-*.properties` trước khi chạy.
-- Ảnh và video nằm trong từng thư mục run; các ảnh F5–F7 chưa kiểm tra bằng mắt. Chỉ kiểm tra qua `results.json` và assert chữ.
+- Đã xem bằng mắt các ảnh F5–F7 của `e2e-run11/`:
+  - `f5-renter-order-paid.png`: đơn "Đang thuê", đã thanh toán, không còn "Chờ thanh toán".
+  - `f5-renter-wallet-tour-shown.png`: tour chào mừng hiện lúc vào ví; script bỏ qua tour trước khi thao tác (ảnh này là trước khi bỏ qua).
+  - `f6-time-shifted.png`: panel tua thời gian mở, đồng hồ góc dưới "00:54 23/11/26 · +23 giờ 59 phút".
+  - `f7-admin-rejected.png`: admin hiện "Đã từ chối listing." không bị tour che.
+  - `f7-admin-tour-shown.png`: tour hiện trước khi bỏ qua (ảnh trước khi bỏ qua).
+  - `f7-owner-sees-reason.png`: **không hiển thị lý do từ chối trên màn hình** (chỉ thấy đầu trang "Account cho thuê"). Việc chủ thấy lý do chỉ được kiểm bằng assert chữ `Lý do từ chối: <ghi chú>` trong `results.json`, chưa có bằng chứng ảnh. Cần chụp lại vùng listing đã từ chối nếu muốn có ảnh.
+- Ảnh và video nằm trong từng thư mục run.
