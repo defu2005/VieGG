@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * expression uses is really exposed on /actuator/prometheus. Run `promtool check rules` on the file too.
  */
 @AutoConfigureObservability
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class AlertRulesIT extends IntegrationTest {
 
     private static final Path RULES = Path.of("../deploy/monitoring/rentgg-alerts.yml");
