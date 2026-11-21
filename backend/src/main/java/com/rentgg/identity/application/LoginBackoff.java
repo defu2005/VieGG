@@ -52,7 +52,7 @@ public class LoginBackoff {
         if (states.size() >= MAX_ENTRIES) {
             states.entrySet().removeIf(e -> isForgotten(e.getValue(), now));
             if (states.size() >= MAX_ENTRIES) {
-                states.clear();
+                evictBatch();
             }
         }
         states.compute(key, (k, old) -> {
@@ -60,6 +60,23 @@ public class LoginBackoff {
             Instant blockedUntil = failures <= FREE_FAILURES ? now : now.plus(waitAfter(failures));
             return new State(failures, blockedUntil, now);
         });
+    }
+
+    /**
+     * Frees room when the map is full. Entries with no escalated wait go first (a flood of random emails only creates
+     * those), then the least recently seen. Escalated entries are kept as long as possible, so a flood cannot reset
+     * the wait of a real target. Evicts a tenth at a time, so a flood does not re-sort the map on every request.
+     */
+    private void evictBatch() {
+        int target = MAX_ENTRIES / 10;
+        states.entrySet().stream()
+                .sorted(java.util.Comparator
+                        .comparing((Map.Entry<String, State> e) -> e.getValue().failures() > FREE_FAILURES)
+                        .thenComparing(e -> e.getValue().lastSeen()))
+                .limit(target)
+                .map(Map.Entry::getKey)
+                .toList()
+                .forEach(states::remove);
     }
 
     /** Any issued session (a correct password) forgets the key. */
