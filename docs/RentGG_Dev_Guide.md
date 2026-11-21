@@ -216,6 +216,8 @@ Lấy đúng thứ tự mức độ từ `RentGG_Implementation_Status.md` §4.1
 
 - **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ LÀM CODE, CHƯA XÁC MINH BẢN KÝ.** `android/app/build.gradle.kts` đọc `RENTGG_KEYSTORE_PATH`, `RENTGG_KEYSTORE_PASSWORD`, `RENTGG_KEY_ALIAS`, `RENTGG_KEY_PASSWORD` từ biến môi trường hoặc `~/.gradle/gradle.properties` (ngoài repo). Có path mà thiếu biến khác thì build dừng với thông báo rõ. Không có path thì bản release không ký (unsigned). `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties` (`*.jks` đã có sẵn). **Chưa chạy được `./gradlew assembleRelease`** trong cloud: `dl.google.com` bị proxy chặn (403), Maven Central trả 429 cho plugin AGP 8.7.3, nên không tải được plugin Android và không có Android SDK. Vì vậy chưa xác minh được APK ký, cũng chưa xác minh nhánh unsigned. Cần chạy trên máy có SDK, hoặc trong CI có quyền tải SDK, để xác nhận.
 
+- **Kết quả §7 (2026-11-21, nhánh `claude/row-24-status-docs`): ĐÃ LÀM.** Cập nhật `RentGG_Implementation_Status.md` (35 migration V1–V35, CI backend và web đã có, §4.1 đánh dấu mục đã làm), `RentGG_Frontend_Status.md` (ngày rà soát, CI web) và `RentGG_iOS_Status.md` (kết quả ios.yml, Android). Mỗi file có ngày cập nhật. Đối chiếu với `git log` của các nhánh `claude/row-*`. Mục còn mở: Docker (§4.1 mục 4) và quét phụ thuộc (§17.5).
+
 ## 4. Tích hợp bên ngoài (làm bằng mock trước)
 
 Mỗi tích hợp có hai checkbox: **`[M]` đạt với mock** và **`[S]` đạt với sandbox thật**. Mục `[S]` để trống cho đến khi bạn có khóa (Phụ lục A).
