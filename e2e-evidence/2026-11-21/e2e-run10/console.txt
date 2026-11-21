@@ -1,0 +1,7 @@
+PASS  F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login  (2501 ms)  lỗi hiển thị: "Email hoặc mật khẩu không đúng."
+PASS  F4 chủ duyệt đơn "Chờ chủ account duyệt"  (4615 ms)  đơn /orders/245d4d4d-62ee-4af2-bef0-0993b36c401f đã duyệt; khu "Duyệt đơn" đã biến mất
+PASS  F2 người thuê thấy đơn và danh sách có dữ liệu  (3243 ms)  danh sách có 4 dòng đơn
+PASS  F2 người thuê xác minh đơn đã được chủ duyệt  (3958 ms)  đơn http://localhost:5273/orders/245d4d4d-62ee-4af2-bef0-0993b36c401f hiển thị "Đã xác nhận", không còn "Chờ chủ account duyệt"
+PASS  F3 admin mở "Kiểm duyệt bài đăng"  (13683 ms)  tiêu đề "Kiểm duyệt bài đăng" hiển thị; 1 bài đăng ở trạng thái mặc định
+
+5/5 luồng đạt

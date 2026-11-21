@@ -1,0 +1,32 @@
+[
+  {
+    "name": "F1 đăng nhập sai mật khẩu báo lỗi và ở lại /login",
+    "ok": true,
+    "detail": "lỗi hiển thị: \"Email hoặc mật khẩu không đúng.\"",
+    "ms": 2501
+  },
+  {
+    "name": "F4 chủ duyệt đơn \"Chờ chủ account duyệt\"",
+    "ok": true,
+    "detail": "đơn /orders/245d4d4d-62ee-4af2-bef0-0993b36c401f đã duyệt; khu \"Duyệt đơn\" đã biến mất",
+    "ms": 4615
+  },
+  {
+    "name": "F2 người thuê thấy đơn và danh sách có dữ liệu",
+    "ok": true,
+    "detail": "danh sách có 4 dòng đơn",
+    "ms": 3243
+  },
+  {
+    "name": "F2 người thuê xác minh đơn đã được chủ duyệt",
+    "ok": true,
+    "detail": "đơn http://localhost:5273/orders/245d4d4d-62ee-4af2-bef0-0993b36c401f hiển thị \"Đã xác nhận\", không còn \"Chờ chủ account duyệt\"",
+    "ms": 3958
+  },
+  {
+    "name": "F3 admin mở \"Kiểm duyệt bài đăng\"",
+    "ok": true,
+    "detail": "tiêu đề \"Kiểm duyệt bài đăng\" hiển thị; 1 bài đăng ở trạng thái mặc định",
+    "ms": 13683
+  }
+]

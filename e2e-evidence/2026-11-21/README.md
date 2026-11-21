@@ -20,3 +20,8 @@ Mỗi lần chạy trên DB `rentgg_e2e` mới (drop/create + khởi động l�
 | `e2e-negative3/` | — | — | **Đã thay thế** bởi `e2e-negative4/` (DB đã dùng, F4 đỏ sai nguyên nhân) |
 
 Chưa phủ (không tự động hóa trong lần này): thanh toán của người thuê, tua thời gian (🕒), admin từ chối bài đăng, kiểm thử mobile/simulator (không có máy được gắn vào phiên).
+
+## Lần chạy 10 (DB mới, script `frontend/e2e/web-evidence.cjs` sau khi sửa tour)
+
+- `e2e-run10/`: 5/5, exit 0. Sửa: tour được chờ tối đa 3 giây và được bỏ qua sau mỗi lần `goto` (F2 danh sách, F3 admin). Ảnh `f2-renter-orders.png` và `f3-admin-listings.png` đã kiểm tra là sạch; ảnh `*-tour-shown.png` là ảnh trước khi bỏ qua.
+- Lần chạy 8 và 9 được chụp trước khi sửa tour: kết quả chữ vẫn đúng nhưng ảnh F2 danh sách và F3 có thể bị tour che. Nếu cần ảnh sạch, dùng `e2e-run10/`.
