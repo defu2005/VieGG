@@ -1,4 +1,38 @@
+/* Mặc định tối (hướng B). Chế độ sáng chỉ bật khi có data-theme="light". */
 :root {
+  --bg: #0e0f13;
+  --surface: #171920;
+  --text: #f2f3f5;
+  --muted: #9ba1ad;
+  --border: #2b2f3a;
+  --primary: #ff6a00;
+  --primary-text: #222222;
+  --brand: #ff6a00;
+  --brand-soft: #2a1a10;
+  --price: #ff8a3d;
+  --danger: #ff5c7a;
+  --success: #4ade80;
+  --warning: #f5c542;
+  --accent: #ff7a5c;
+  --held: #2dd4bf;
+  --pending: #7ca7ff;
+  --released: #4ade80;
+  --disputed: #ff5c7a;
+  --surface-2: #1f222b;
+  --radius: 14px;
+  --ring: color-mix(in srgb, var(--primary) 40%, transparent);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 18px 40px -12px rgba(255, 106, 0, 0.3);
+  --gradient: linear-gradient(135deg, #b84a00 0%, #ff6a00 100%);
+  --glow: radial-gradient(circle, rgba(255, 106, 0, 0.18), transparent 70%);
+  color-scheme: dark;
+  font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='light'] {
   --bg: #f6f6f8;
   --surface: #ffffff;
   --text: #222222;
@@ -8,77 +42,22 @@
   --primary-text: #ffffff;
   --brand: #ff6a00;
   --brand-soft: #fff1e6;
+  --price: #c73a1e;
   --danger: #d93025;
   --success: #15723f;
   --warning: #8a5a00;
-  --radius: 14px;
   --accent: #ff4d2e;
   --held: #0f766e;
   --pending: #1f5fc7;
   --released: #15723f;
   --disputed: #d93025;
   --surface-2: #efeff3;
-  --ring: color-mix(in srgb, var(--primary) 35%, transparent);
   --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05), 0 1px 3px rgba(17, 24, 39, 0.04);
   --shadow: 0 6px 18px -6px rgba(17, 24, 39, 0.12), 0 2px 6px rgba(17, 24, 39, 0.05);
   --shadow-lg: 0 18px 40px -12px rgba(184, 74, 0, 0.26);
   --gradient: linear-gradient(135deg, #b84a00 0%, #c94e00 100%);
-  color-scheme: light dark;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #141414;
-    --surface: #1e1e21;
-    --text: #f2f2f4;
-    --muted: #a3a3ad;
-    --border: #2e2e34;
-    --primary: #ff8a3d;
-    --primary-text: #141414;
-    --brand: #ff6a00;
-    --brand-soft: #3a2416;
-    --danger: #ff6b5e;
-    --success: #4ade80;
-    --warning: #fbbf24;
-    --accent: #ff7a5c;
-    --held: #2dd4bf;
-    --pending: #7ca7ff;
-    --released: #4ade80;
-    --disputed: #ff6b5e;
-    --surface-2: #26262b;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 18px 40px -12px rgba(255, 106, 0, 0.3);
-    --gradient: linear-gradient(135deg, #9a3d00 0%, #b84a00 100%);
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #141414;
-  --surface: #1e1e21;
-  --text: #f2f2f4;
-  --muted: #a3a3ad;
-  --border: #2e2e34;
-  --primary: #ff8a3d;
-  --primary-text: #141414;
-  --brand: #ff6a00;
-  --brand-soft: #3a2416;
-  --danger: #ff6b5e;
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --accent: #ff7a5c;
-  --held: #2dd4bf;
-  --pending: #7ca7ff;
-  --released: #4ade80;
-  --disputed: #ff6b5e;
-  --surface-2: #26262b;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 18px 40px -12px rgba(255, 106, 0, 0.3);
-  --gradient: linear-gradient(135deg, #9a3d00 0%, #b84a00 100%);
+  --glow: radial-gradient(circle, rgba(255, 106, 0, 0.12), transparent 70%);
+  color-scheme: light;
 }
 
 * {

@@ -63,8 +63,9 @@ a:hover {
   width: 2rem;
   height: 2rem;
   border-radius: 10px;
-  background: var(--gradient);
-  color: #fff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -99,7 +100,7 @@ a:hover {
 
 .account a.btn-primary,
 .account a.btn-primary:hover {
-  color: #fff;
+  color: var(--primary-text);
 }
 
 .nav a.active {
@@ -123,8 +124,9 @@ a:hover {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  background: var(--gradient);
-  color: #fff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -167,14 +169,14 @@ a:hover {
 }
 
 .btn-primary {
-  background: var(--gradient);
+  background: var(--primary);
   border-color: transparent;
-  color: #fff;
+  color: var(--primary-text);
   box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--primary) 70%, transparent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  color: #fff;
+  color: var(--primary-text);
   border-color: transparent;
   filter: brightness(1.08);
   box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--primary) 80%, transparent);
@@ -282,9 +284,9 @@ tbody tr:hover {
 }
 
 .chip.active {
-  background: var(--gradient);
+  background: var(--primary);
   border-color: transparent;
-  color: #fff;
+  color: var(--primary-text);
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
@@ -299,9 +301,10 @@ tbody tr:hover {
   overflow: hidden;
   padding: 2.75rem 2rem;
   border-radius: 22px;
-  background: var(--gradient);
-  color: #fff;
-  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow);
 }
 
 .hero::before,
@@ -317,7 +320,7 @@ tbody tr:hover {
   height: 360px;
   right: -90px;
   top: -140px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.28), transparent 70%);
+  background: var(--glow);
 }
 
 .hero::after {
@@ -325,7 +328,7 @@ tbody tr:hover {
   height: 260px;
   right: 18%;
   bottom: -170px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 70%);
+  background: var(--glow);
 }
 
 .hero > * {
@@ -343,6 +346,7 @@ tbody tr:hover {
 .hero p {
   font-size: 1.05rem;
   max-width: 580px;
+  color: var(--muted);
 }
 
 .hero .btn {
@@ -350,26 +354,26 @@ tbody tr:hover {
 }
 
 .hero .btn-light {
-  background: #fff;
-  color: #b84a00;
-  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+  background: var(--primary);
+  color: var(--primary-text);
+  box-shadow: 0 8px 20px -8px rgba(255, 106, 0, 0.45);
 }
 
 .hero .btn-light:hover {
-  color: #8f3900;
+  background: color-mix(in srgb, var(--primary) 88%, #fff);
   transform: translateY(-1px);
 }
 
 .hero .btn-outline-light {
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .hero .btn-outline-light:hover {
-  background: rgba(255, 255, 255, 0.24);
-  border-color: rgba(255, 255, 255, 0.6);
-  color: #fff;
+  background: var(--surface);
+  border-color: var(--muted);
+  color: var(--text);
 }
 
 .hero-eyebrow {
@@ -379,8 +383,9 @@ tbody tr:hover {
   margin-bottom: 0.9rem;
   padding: 0.3rem 0.75rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -404,7 +409,7 @@ tbody tr:hover {
   height: 1.2rem;
   margin-right: 0.4rem;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, var(--held) 22%, transparent);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -460,8 +465,9 @@ tbody tr:hover {
   width: 3rem;
   height: 3rem;
   border-radius: 12px;
-  background: var(--gradient);
-  color: #fff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
   font-size: 1.2rem;
 }
 
@@ -502,8 +508,9 @@ tbody tr:hover {
 .listing-card-cover.cover-fallback {
   display: grid;
   place-items: center;
-  background: var(--gradient);
-  color: rgba(255, 255, 255, 0.92);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
   font-size: 2.6rem;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -523,18 +530,8 @@ tbody tr:hover {
 }
 
 .price {
-  color: #c73a1e;
+  color: var(--price);
   letter-spacing: -0.02em;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .price {
-    color: #ff7a5c;
-  }
-}
-
-:root[data-theme='dark'] .price {
-  color: #ff7a5c;
 }
 
 /* ---- Numbered steps & trust items ---- */
@@ -546,8 +543,9 @@ tbody tr:hover {
 }
 
 .trust .avatar {
-  background: var(--gradient);
-  color: #fff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
   border-radius: 50%;
 }
 
