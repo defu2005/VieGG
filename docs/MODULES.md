@@ -30,12 +30,12 @@ Cột **Hạng** là thứ tự tầng trong `ArchitectureTest.RANK` (`backend/s
 | `wallet` | 6 | Ví: số dư (projection từ ledger), nạp, rút tiền | `/api/v1` (`WalletController`) |
 | `approval` | 6 | Dual approval (hai người duyệt, khác nhau) | `/api/v1/admin` (`ApprovalController`) |
 | `helpdesk` | 6 | Ticket hỗ trợ và tin nhắn, có đính kèm | `/api/v1` (`HelpdeskController`) |
-| `legal` | **không có** | Thông báo pháp lý (`legal_notices`) và chuyển trạng thái | `/api/v1/support/legal-notices` |
+| `legal` | 1 | Thông báo pháp lý (`legal_notices`) và chuyển trạng thái | `/api/v1/support/legal-notices` |
 | `jobs` | 7 | Job định kỳ (`JobScheduler`, `Jobs`), dữ liệu mẫu dev (`DevDataSeeder`), tua thời gian dev (`devtime/`), backfill media (`media/`) | `/api/v1/dev/jobs`, `/api/v1/dev/time` (chỉ profile dev) |
 
 Ghi chú về bảng:
 
-- **`legal`** không có trong `ArchitectureTest.RANK`, nên quy tắc phụ thuộc không kiểm tra module này. Nó cũng không có `domain/` và `infrastructure/`. Trạng thái: UNKNOWN về việc cần thêm hạng hay không. Xem [DECISIONS.md](DECISIONS.md).
+- **`legal`** có hạng 1 trong `ArchitectureTest.RANK` (từ commit `90a9947`). Nó chỉ import `audit` và `shared`. Nó không có `domain/` và `infrastructure/`. Xem [DECISIONS.md](DECISIONS.md) (D-17).
 - **`settings`**, **`helpdesk`** và **`legal`** không có trong bảng module của System Design v1.2 (`docs/RentGG_System_Design_v1.2.md` §4.3). Bảng này mô tả theo code.
 - **`deposit`** không có controller. Cọc được tạo và trả qua `order`, số dư qua `wallet`.
 - **`jobs`** có `DevController`, `DevTimeController` và `DevDataSeeder` chỉ chạy ở profile `dev` (xem [ARCHITECTURE.md](ARCHITECTURE.md#cấu-hình-và-profile)).
@@ -73,10 +73,10 @@ grep -rhoE "import com\.rentgg\.[a-z]+" backend/src/main/java/com/rentgg/<module
 | `wallet` (6) | `audit`, `deposit`, `dispute`, `identity`, `ledger`, `order`, `payment`, `settings`, `shared` |
 | `approval` (6) | `audit`, `catalog`, `config`, `gameaccount`, `ledger`, `shared`, `wallet` |
 | `helpdesk` (6) | `audit`, `dispute`, `identity`, `order`, `shared` |
-| `legal` (không có) | `audit`, `shared` |
+| `legal` (1) | `audit`, `shared` |
 | `jobs` (7) | `approval`, `catalog`, `config`, `deposit`, `gameaccount`, `identity`, `ledger`, `listing`, `order`, `payment`, `shared`, `wallet` |
 
-Đọc bảng: module hạng cao gọi module hạng thấp hoặc cùng hạng là hợp lệ. Module `legal` không nằm trong `RANK`, nên bảng này không được kiểm tra tự động cho nó.
+Đọc bảng: module hạng cao gọi module hạng thấp hoặc cùng hạng là hợp lệ. Module `legal` nằm ở hạng 1, nên quy tắc phụ thuộc kiểm tra cả module này.
 
 Đây là quét import tĩnh. Không bao gồm gọi qua reflection hay cấu hình Spring. Quy tắc tự động là `ArchitectureTest`; bảng này chỉ để đọc nhanh.
 

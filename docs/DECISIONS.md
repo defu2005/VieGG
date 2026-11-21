@@ -100,11 +100,11 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 
 ## Phạm vi module
 
-### D-17: Module `legal` không nằm trong `ArchitectureTest.RANK` (OPEN)
+### D-17: Module `legal` ở hạng 1 trong `ArchitectureTest.RANK` (ACTIVE)
 
 - `legal` có `api` và `application`, không có `domain` và `infrastructure`.
-- Hệ quả: quy tắc phụ thuộc không kiểm tra module này.
-- Cần quyết định: thêm vào `RANK` với hạng phù hợp, hoặc ghi lý do không thêm.
+- Lý do chọn hạng 1: `legal` chỉ import `audit` và `shared`, và chỉ `jobs` (hạng 7) import nó. Commit `90a9947`, `ArchitectureTest` pass.
+- Hệ quả: `legal` không được import `identity` hay `order` nếu không đổi hạng. Muốn đổi thì cần sửa `RANK` và ghi mục mới ở đây.
 
 ### D-18: `settings`, `helpdesk`, `legal` không có trong bảng module của System Design (OPEN)
 

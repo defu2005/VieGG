@@ -21,7 +21,7 @@ Mọi phiên làm việc — backend, frontend, Android, iOS — dùng chung đ�
 2. Backend: `preview_start` với `rentgg-backend` → kiểm tra `http://localhost:8080/actuator/health` = `UP`.
 3. Frontend: `preview_start` với `rentgg-frontend` → `http://localhost:5273`.
 
-Cấu hình nằm trong `.Codex/launch.json`. Các cặp `*-alt`, `*-ui`, `*-8081`, `*-media` chỉ dùng khi cần chạy song song nhiều phiên; chúng vẫn dùng chung PostgreSQL portable ở trên.
+Cấu hình nằm trong `.claude/launch.json`. Các cặp `*-alt`, `*-ui`, `*-8081`, `*-media` chỉ dùng khi cần chạy song song nhiều phiên; chúng vẫn dùng chung PostgreSQL portable ở trên.
 
 ### Không dùng
 - Container Docker `rentgg-db-1` (`docker compose up db`): DB trống, chỉ có dữ liệu mẫu. Nó cũng chiếm cổng 5432 nên phải tắt (`docker compose stop db`) trước khi bật DB portable.
