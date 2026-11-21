@@ -21,7 +21,7 @@ Mọi phiên làm việc — backend, frontend, Android, iOS — dùng chung đ�
 2. Backend: `preview_start` với `rentgg-backend` → kiểm tra `http://localhost:8080/actuator/health` = `UP`.
 3. Frontend: `preview_start` với `rentgg-frontend` → `http://localhost:5273`.
 
-Cấu hình nằm trong `.Codex/launch.json`. Các cặp `*-alt`, `*-ui`, `*-8081`, `*-media` chỉ dùng khi cần chạy song song nhiều phiên; chúng vẫn dùng chung PostgreSQL portable ở trên.
+Cấu hình nằm trong `.claude/launch.json`. Các cặp `*-alt`, `*-ui`, `*-8081`, `*-media` chỉ dùng khi cần chạy song song nhiều phiên; chúng vẫn dùng chung PostgreSQL portable ở trên.
 
 ### Không dùng
 - Container Docker `rentgg-db-1` (`docker compose up db`): DB trống, chỉ có dữ liệu mẫu. Nó cũng chiếm cổng 5432 nên phải tắt (`docker compose stop db`) trước khi bật DB portable.
@@ -57,3 +57,12 @@ Triển khai: `docs/RentGG_Production_Deploy.md` (stack `deploy/`, ảnh/video t
 3. Test xanh trước khi mở PR. Nếu test đỏ sẵn từ baseline, ghi rõ trong PR, không che lỗi.
 4. Không đưa giá trị thật vào file được commit (`.env`, `deploy/.env.prod`, keystore, khóa PSP/S3). Dùng giá trị mock trong test.
 5. Khi xong một mục trong `docs/RentGG_Dev_Guide.md`, đánh dấu mục đó và ghi kết quả test.
+
+### Duy trì tài liệu kỹ thuật
+Tài liệu kỹ thuật gồm `README.md` và `docs/ARCHITECTURE.md`, `MODULES.md`, `DATABASE.md`, `API.md`, `DEVELOPMENT.md`, `TESTING.md`, `DECISIONS.md`. Chúng mô tả code hiện có. Khi PR đổi module, tầng, endpoint, bảng hoặc migration, lệnh chạy, cổng, biến môi trường, hoặc số test:
+1. Cập nhật đúng file liên quan trong cùng PR. Không tạo file trùng nội dung với file đã có.
+2. Ghi số liệu kèm ngày kiểm tra và lệnh để kiểm lại. Không ghi tổng số test nếu chưa chạy lại.
+3. Không ghi secret, mật khẩu, email, đường dẫn máy cá nhân, hay giá trị cấu hình thật.
+4. Khi nói về năng lực, gắn trạng thái IMPLEMENTED, PARTIAL, PLANNED hoặc UNKNOWN.
+5. Quyết định kiến trúc mới: thêm mục vào `docs/DECISIONS.md`. Không sửa mục cũ trừ khi quyết định đó đã thực sự đổi.
+6. Thực tế hiện tại: đã có migration V1–V37. Số migration tiếp theo là số lớn nhất trong `db/migration` cộng 1 (xem `docs/DATABASE.md`). Quy tắc số migration ở trên cần được người quản lý dự án xác nhận lại.

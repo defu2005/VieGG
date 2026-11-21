@@ -43,6 +43,8 @@ Phân quyền ở giao diện chỉ để ẩn và chặn điều hướng. Quy�
 
 Lưu ý về nguồn tham khảo: trang zuhaowan.com là ứng dụng JavaScript và không hiển thị được trong trình duyệt tích hợp, còn tìm kiếm web chỉ cho thông tin bên ngoài. Vì vậy các cải tiến dưới đây dựa trên mẫu giao diện phổ biến của nhóm sàn thuê account, **không phải sao chép từ trang cụ thể nào**.
 
+**Trạng thái (2026-11-21):** giao diện tối làm mặc định, cam chỉ cho hành động và giá (D-24 trong `DECISIONS.md`, nhánh `claude/vigilant-heisenberg-xp4z0i`). Đã xem ảnh chụp bảy trang (trang chủ, tìm account, chi tiết, danh sách đơn, đơn hàng, ví, admin) ở cả 1280px và 390px. Ảnh ví 390px và admin 390px xem trước bản sửa bảng ví; sau đó đã đo lại: bảng tiền cọc có đủ sáu cột và cuộn ngang được. Không tràn ngang trang ở cả hai kích thước. Bảng đơn và bảng ví trên 390px cuộn ngang trong thẻ, cột phải cần vuốt. Chưa xem ở chế độ sáng (không còn là mặc định, chưa có nút chuyển). Tên game trên đơn lấy từ `/games` vì API đơn không trả tên.
+
 | Khu vực | Cải tiến |
 |---|---|
 | Trang chủ | Banner, lưới game, danh sách account giá tốt, hướng dẫn 3 bước, thanh bảo đảm (mã hóa mật khẩu, cọc riêng từng đơn, đổi mật khẩu sau mỗi lượt, khiếu nại), lời mời đăng account cho thuê |
@@ -51,6 +53,8 @@ Lưu ý về nguồn tham khảo: trang zuhaowan.com là ứng dụng JavaScript
 | Đơn hàng | Thanh tiến trình 5 bước, đếm ngược hạn thanh toán và hạn duyệt, lọc theo trạng thái, nút "Thuê lại" |
 | Chủ account | Nhập "thông tin nổi bật" (rank, server, số tướng, trang phục...) dạng tên: giá trị, hiện thành thẻ cho người thuê |
 | Độ bền | Phiên hết hạn không còn làm trống trang công khai: khi refresh token thất bại, request được thử lại không kèm token |
+
+**Ghi chú 2026-11-21 (PLANNED):** nghiên cứu lại giao diện cho đúng bản chất sàn trung gian thuê account. Ưu tiên tín hiệu tin cậy và an toàn (cọc, mã hóa, trạng thái bàn giao, khiếu nại nhìn thấy được ở mọi bước), không chỉ làm đẹp. Chưa bắt đầu; chưa có thiết kế được duyệt.
 
 ## 3. Chưa kiểm thử (đã code nhưng chưa chạy trên dữ liệu thật)
 

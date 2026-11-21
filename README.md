@@ -1,70 +1,88 @@
-# RentGG (Phase 0 — MVP)
+# RentGG
 
-Marketplace cho thuê account game, xây theo **System Design v1.2** (`docs/RentGG_System_Design_v1.2.md`) và **Use Case v8** (`docs/RentGG_Use_Cases_China_Model_v8.md`).
+Marketplace cho thuê account game. Monorepo gồm backend (Spring Boot), web (React), ứng dụng Android và iOS, cùng tài liệu và cấu hình triển khai.
+
+Trạng thái hiện tại theo từng phần: xem [docs/RentGG_Implementation_Status.md](docs/RentGG_Implementation_Status.md) và [docs/MODULES.md](docs/MODULES.md). Tài liệu kỹ thuật này ghi theo code, ngày 2026-11-21.
 
 ## Cấu trúc thư mục
-```
-RentGG/
-├── backend/        Spring Boot API (Java 21, Maven, Dockerfile, mvnw)
-├── frontend/       Giao diện React + Vite (cài đặt và chạy riêng)
-├── docs/           Tài liệu thiết kế và checklist
-├── docker-compose.yml   PostgreSQL + backend
-└── .env.example    Biến môi trường (copy thành .env ở thư mục gốc)
+
+```text
+backend/        Spring Boot 3.3.5, Java 21, Maven wrapper, Dockerfile
+frontend/       Web React 18.3 + Vite 5.4
+android/        Ứng dụng Android (Kotlin, Compose)
+ios/            Ứng dụng iOS (SwiftUI, package RentGGCore)
+deploy/         Triển khai production: Docker Compose, Caddy, sao lưu
+docs/           Tài liệu thiết kế và tài liệu kỹ thuật
+scripts/        Script hỗ trợ (db.cmd cho Windows, e2e)
+docker-compose.yml   Môi trường dev: PostgreSQL + backend
 ```
 
-Backend: Java 21 · Spring Boot 3.3 · PostgreSQL 16 (+ `btree_gist`) · Flyway · ShedLock · Bucket4j · springdoc · Micrometer/Prometheus.
+Module backend và phụ thuộc giữa chúng: [docs/MODULES.md](docs/MODULES.md).
+
+## Tài liệu
+
+| Tài liệu | Nội dung |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Kiến trúc, bảo mật, outbox, job, thanh toán, profile |
+| [MODULES.md](docs/MODULES.md) | Danh sách module backend, tầng, phụ thuộc |
+| [DATABASE.md](docs/DATABASE.md) | Schema, bảng, bất biến ở tầng database, migration |
+| [API.md](docs/API.md) | Quy ước API, endpoint công khai, lỗi, idempotency |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Cách chạy backend, web, cổng, biến môi trường, tua thời gian |
+| [TESTING.md](docs/TESTING.md) | Lệnh kiểm thử, CI, E2E, giới hạn đã biết |
+| [DECISIONS.md](docs/DECISIONS.md) | Quyết định kỹ thuật và các điểm còn mở |
+| [RentGG_Production_Deploy.md](docs/RentGG_Production_Deploy.md) | Triển khai production |
+| [RentGG_System_Design_v1.2.md](docs/RentGG_System_Design_v1.2.md) | Thiết kế hệ thống (tài liệu gốc) |
+| [RentGG_Use_Cases_China_Model_v8.md](docs/RentGG_Use_Cases_China_Model_v8.md) | Use case (tài liệu gốc) |
 
 ## Chạy nhanh
 
-### Cách 1 — Docker Compose (từ thư mục gốc)
-```bash
-cp .env.example .env
-docker compose up --build
-```
-API: http://localhost:8080 · Swagger UI: http://localhost:8080/swagger-ui.html
+Chi tiết và biến môi trường: [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-### Cách 2 — Chạy backend trực tiếp (cần PostgreSQL 16 có DB `rentgg`, user `rentgg`/`rentgg_dev`)
+Backend với profile `dev` (cần PostgreSQL 16 ở cổng 5432, database `rentgg`):
+
 ```bash
 cd backend
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
-Đổi port: biến môi trường `SERVER_PORT=8081` (kèm `RENTGG_PUBLIC_BASE_URL=http://localhost:8081` để link thanh toán giả lập đúng).
 
-### Dữ liệu mẫu (chỉ profile `dev`)
-`DevDataSeeder` tạo sẵn các user `admin@`, `admin2@`, `support@`, `finance@`, `owner@`, `renter@` (đuôi `@rentgg.dev`, mật khẩu ghi trong `DevDataSeeder.DEV_PASSWORD`), một game `ALLOWED`, một game account đã xác minh và một listing `ACTIVE` (30.000đ/giờ, cọc 200.000đ, tự nhận đơn).
+Kiểm tra: `http://localhost:8080/actuator/health` trả `UP`.
 
-Luồng thử bằng tay: đăng nhập renter → `GET /api/v1/listings/search` → `POST /api/v1/orders` (header `Idempotency-Key`) → `POST /orders/{id}/pay` → gọi `checkoutUrl` (`/api/v1/dev/payments/{intentId}/simulate-success`). Admin có thể chạy mọi job ngay bằng `POST /api/v1/dev/jobs/run-all`.
+Web:
 
-## Frontend
-Giao diện React + Vite nằm trong `frontend/`, cài đặt và chạy độc lập với backend:
 ```bash
 cd frontend
-npm install
-npm run dev     # http://localhost:5173, proxy /api tới backend
+npm ci
+npm run dev       # http://localhost:5173, proxy /api tới backend
 ```
-Chi tiết xem `frontend/README.md`.
+
+Docker Compose (có `.env` copy từ `.env.example`):
+
+```bash
+docker compose up -d db   # Máy Windows dev theo CLAUDE.md: không dùng container này
+```
+
+Tài khoản mẫu và luồng thử tay ở profile `dev`: xem [DEVELOPMENT.md](docs/DEVELOPMENT.md#luồng-thử-tay-profile-dev).
 
 ## Kiểm thử
+
 ```bash
 cd backend
-# Có Docker: Testcontainers tự dựng PostgreSQL 16
-./mvnw test
-# Không có Docker: trỏ tới một DB trống (test sẽ clean + migrate DB này)
-TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test
+TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test \
+TEST_DB_USERNAME=rentgg \
+TEST_DB_PASSWORD=<mật khẩu user test> \
+./mvnw -B test
 ```
-31 test, bao phủ các kịch bản bắt buộc T1–T18 của §18.2 (đặt trùng đồng thời, ledger cân bằng theo ví dụ §7.4/§7.5, cọc riêng từng đơn, rút tiền song song, dual approval, cửa sổ xem credentials, 3 end mode, hủy đơn, khiếu nại, chiếm account, fail-closed theo game, job chạy lặp/song song) + test kiến trúc (ArchUnit, quy tắc §4.4) + unit test (tiền, AES-GCM, HMAC).
 
-## Cấu trúc
-`backend/src/main/java/com/rentgg/<module>/{api,application,domain,infrastructure}` — modular monolith theo §4.3:
-`identity`, `catalog`, `gameaccount`, `listing`, `order`, `payment`, `ledger`, `deposit`, `wallet`, `dispute`, `approval`, `notification`, `audit`, `shared`, `config`, `jobs`.
+Không có `TEST_DB_URL` thì test dùng Testcontainers (cần Docker). Chi tiết, CI và giới hạn: [TESTING.md](docs/TESTING.md).
 
-Migration: `backend/src/main/resources/db/migration/V1..V7` (exclusion constraint chống đặt trùng, trigger append-only cho ledger/audit, constraint trigger cân bằng bút toán, CHECK four-eyes cho approval).
+## Migration
 
-## Khác biệt / bổ sung nhỏ so với tài liệu
-- Thêm `POST /orders/{id}/otp-note` (owner gửi mã OTP qua đơn, tự hết hạn sau 10 phút) — kênh "ghi chú trong đơn" mà UC-08 nhắc tới cho game `OWNER_ASSISTED_OTP`.
-- Thêm `GET /admin/ledger/reconciliation` (truy vấn đối soát §16.3) và `GET /admin/ledger/orders/{id}`.
-- Refund lỗi được job `retryFailedRefunds` thử lại có backoff (thay vì giữ event outbox chưa phát).
-- Khiếu nại của người thuê (`RENTER_*`) chỉ mở được khi đơn còn `IN_RENTAL`, đúng bảng §6.5.
+37 file Flyway, `backend/src/main/resources/db/migration/V1__…` đến `V37__…`. Quy tắc đánh số và danh sách bảng: [DATABASE.md](docs/DATABASE.md).
 
-## Chưa làm (theo lộ trình)
-PSP thật (quyết định D1 — chỉ cần thêm một `PaymentGateway`), MFA cho staff, upload bằng chứng, các UC P1/P2. Các tham số theo game (cọc, hold, handover mode…) cần điền từ `docs/RentGG_Validation_Checklist.md` qua `POST /api/v1/admin/games`.
+## Triển khai
+
+Production dùng `deploy/docker-compose.prod.yml` (db, app, caddy, backup). Xem [RentGG_Production_Deploy.md](docs/RentGG_Production_Deploy.md). Không chạy workflow deploy khi chưa có quyết định của người quản lý dự án.
+
+## Quy tắc làm việc
+
+Quy tắc cho người và agent nằm trong [CLAUDE.md](CLAUDE.md) và [AGENTS.md](AGENTS.md). Khi đổi module, endpoint, schema, hoặc lệnh chạy, cập nhật tài liệu kỹ thuật tương ứng trong `docs/` (mục "Duy trì tài liệu" trong hai file trên).

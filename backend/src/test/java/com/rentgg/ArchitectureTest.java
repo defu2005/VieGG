@@ -19,7 +19,7 @@ class ArchitectureTest {
     /** Layer rank per module (lower layers must not know higher ones). */
     private static final Map<String, Integer> RANK = Map.ofEntries(
             Map.entry("shared", 0), Map.entry("config", 0),
-            Map.entry("audit", 1), Map.entry("notification", 1),
+            Map.entry("audit", 1), Map.entry("notification", 1), Map.entry("legal", 1),
             Map.entry("identity", 2), Map.entry("catalog", 2), Map.entry("ledger", 2), Map.entry("settings", 2),
             Map.entry("gameaccount", 3), Map.entry("payment", 3), Map.entry("deposit", 3),
             Map.entry("listing", 4),

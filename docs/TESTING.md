@@ -1,0 +1,141 @@
+# Kiểm thử
+
+Ngày kiểm tra **2026-11-21**. Kết quả chạy thật: `./mvnw -B test` trên PostgreSQL 16.15 (`rentgg_test`, user `rentgg`) → **340 test, 0 lỗi, 0 bỏ qua, BUILD SUCCESS** (62 lớp test). Chạy lại để có con số mới.
+
+## Tổng quan
+
+| Phạm vi | Công cụ | Nơi chạy | Trạng thái |
+|---|---|---|---|
+| Backend unit và integration | JUnit 5, Spring Boot Test, ArchUnit, MockWebServer, S3Proxy | CI (`backend.yml`) và máy dev | IMPLEMENTED |
+| Web typecheck và build | `tsc`, Vite | CI (`web.yml`) | IMPLEMENTED |
+| Caddyfile | `caddy validate` | CI (`web.yml`) | IMPLEMENTED |
+| iOS unit | `swift test --disable-swift-testing` | CI (`ios.yml`, macOS) | IMPLEMENTED |
+| Android | 1 file test: `android/app/src/test/java/com/rentgg/app/ApiClientTest.kt` | Không chạy trong CI | PARTIAL |
+| E2E trình duyệt | Playwright | Thủ công, không trong CI | PARTIAL: xem mục E2E |
+| Kiểm thử trên thiết bị hoặc simulator thật | — | — | PLANNED |
+
+## Số lượng file test (backend)
+
+Đếm theo tên file, ngày 2026-11-21:
+
+- 20 file `*Test.java` (unit và kiến trúc)
+- 44 file `*IT.java` (integration, chạy với database thật)
+
+Lệnh kiểm tra: `find backend/src/test -name '*Test.java' | wc -l` và `find backend/src/test -name '*IT.java' | wc -l`.
+
+Một số file đáng biết:
+
+| File | Kiểm tra |
+|---|---|
+| `ArchitectureTest.java` | Quy tắc phụ thuộc giữa tầng và module (xem [MODULES.md](MODULES.md)) |
+| `AuthorizationCoverageTest.java` | Mọi controller có `@PreAuthorize` |
+| `com/rentgg/docs/` (`ApiDocsDisabledTest`, `ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT`, `ApiDocsEnabledInTestProfileIT`) | OpenAPI tắt ở prod và staging, bật ở test |
+| `shared/media/S3ObjectStorageTest.java` | Lưu media trên S3, dùng S3Proxy làm giả lập |
+| `PaymentProvidersIT.java`, `MomoWebhookIT.java`, `PayosWebhookIT.java` | Adapter PSP với webhook giả lập |
+| `LoginBackoffIT.java` | Giới hạn đăng nhập sai |
+
+## Chạy backend test
+
+Test dùng database `rentgg_test`. Test tự xóa và migrate database này, không bao giờ trỏ vào database dev.
+
+```bash
+cd backend
+TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test \
+TEST_DB_USERNAME=rentgg \
+TEST_DB_PASSWORD=<mật khẩu của user test> \
+./mvnw -B test
+```
+
+Yêu cầu: PostgreSQL 16 chạy ở cổng 5432, có user và database tương ứng. Trên Windows dev, `CLAUDE.md` mô tả cách dùng PostgreSQL portable. Trong CI, `backend.yml` dựng PostgreSQL 16 làm service.
+
+Nếu không đặt `TEST_DB_URL`, `support/IntegrationTest.java` dùng Testcontainers để dựng PostgreSQL 16 tự động. Cách này cần Docker daemon đang chạy. Các test cần quyền tạo role (`DbRolesIT`) tạo database tạm `rentgg_roles_test` khi có `TEST_DB_URL`, và tự bỏ qua khi không kết nối được.
+
+Mật khẩu test không ghi trong tài liệu. Đặt biến khi chạy; không commit.
+
+Chạy một test:
+
+```bash
+./mvnw -B test -Dtest=ArchitectureTest
+```
+
+## CI backend
+
+`.github/workflows/backend.yml`, chạy khi có thay đổi trong `backend/**` hoặc `deploy/db/**`:
+
+1. Dựng PostgreSQL 16 service.
+2. `./mvnw -B test`.
+3. `docker build` image backend (không chạy image).
+
+## CI web
+
+`.github/workflows/web.yml`, Node 22:
+
+1. `npm ci`
+2. `npm run typecheck`
+3. `npm run build`
+4. Kiểm tra Caddyfile bằng `caddy:2.10-alpine caddy validate`.
+
+Web không có test đơn vị tự động (UNKNOWN: chưa tìm thấy script test trong `frontend/package.json`).
+
+## CI iOS
+
+`.github/workflows/ios.yml`, macOS:
+
+1. `xcodebuild -version`
+2. `swift test --disable-swift-testing` (package RentGGCore)
+3. `xcodegen generate`
+4. Build cho simulator.
+
+## E2E trình duyệt
+
+- Script có sẵn trong repo: `scripts/e2e/staff-mfa.js` (Playwright). Không được gọi từ workflow nào.
+- Bộ E2E cho luồng web (`frontend/e2e/web-evidence.cjs`) nằm trên nhánh `claude/e2e-web-evidence`, chưa vào `dev`. Trạng thái PR: xem PR #30 trên GitHub.
+- Bằng chứng ảnh và video của các lần chạy nằm trên nhánh `claude/e2e-evidence-store`, thư mục `e2e-evidence/`.
+- Trạng thái: PARTIAL. Chạy được trên môi trường có backend và web; chưa được đưa vào CI.
+
+### Các luồng đã có (script trên PR #30, script chưa vào `dev`)
+
+Ngày kiểm tra **2026-11-21**, script commit `685c0ca`. Các luồng: F1 sai mật khẩu, F2 người thuê xem đơn, F3 admin xem kiểm duyệt, F4 chủ duyệt đơn, F5 thanh toán ví, F6 tua 🕒 +1 ngày rồi về giờ thật, F7 admin từ chối bài đăng.
+
+Lệnh chạy (cần backend profile `dev` ở cổng 8080 và web ở cổng 5273, DB `rentgg_e2e` mới cho mỗi lần):
+
+```bash
+cd frontend
+node e2e/web-evidence.cjs <thư mục ra> [--expect-fail]
+```
+
+Biến môi trường (tùy chọn):
+- `E2E_BASE`: mặc định `http://localhost:5273`.
+- `E2E_PASSWORD`: mặc định là giá trị của hằng `DevDataSeeder.DEV_PASSWORD` (chỉ dùng cho DB dev có seed). Đặt biến này khi DB dùng mật khẩu khác.
+
+Thư mục ra nhận ảnh, `video/*.webm` và `results.json`.
+
+**Cảnh báo:** không chạy trên DB `rentgg` dùng chung. Script ghi dữ liệu thật trong DB: thanh toán ví (F5) và từ chối bài đăng (F7). F6 tua đồng hồ dev thêm một ngày rồi về giờ thật ở cuối; nếu script bị dừng giữa chừng, đồng hồ dev sẽ lệch. Chạy trên DB riêng (ví dụ `rentgg_e2e`) và xoá `backend/target/dev-clock-*.properties` trước khi chạy lại.
+
+`--expect-fail` (negative control) không đảo kết quả. Nó thay một kỳ vọng bằng giá trị sai có chủ đích (ví dụ đòi nhãn "Chờ thanh toán" còn sau khi đã thanh toán, hoặc nhập lý do từ chối khác), để kiểm tra luồng tương ứng có đỏ đúng chỗ. Lần chạy âm tính phải thoát với exit 1.
+
+Kết quả đã ghi (8 điểm kiểm trên 7 luồng; F2 có hai điểm kiểm):
+
+| Lần chạy | Kết quả | Exit | Ghi chú |
+| --- | --- | --- | --- |
+| run 11 | 8/8 | 0 | Lần sạch, có F5–F7 |
+| negative 6 (`--expect-fail`) | 3/8 | 1 | Đỏ đúng chỗ ở F2 (xác minh), F3 (tiêu đề), F5, F6, F7 |
+
+Bằng chứng ảnh của F7 (chủ thấy lý do) chỉ kiểm qua assert chữ; ảnh `f7-owner-sees-reason.png` không hiển thị lý do ở vùng đang cuộn.
+
+Chưa phủ: thanh toán PSP thật, hoàn tiền PSP thật, kiểm thử trên thiết bị hoặc simulator. Chưa đưa vào CI.
+
+## Quy ước khi thêm test
+
+- Test database đi qua Flyway, không tạo bảng bằng tay.
+- Thời gian trong test dùng `MutableClock` (không dùng thời gian thật).
+- Test không chứa giá trị thật: dùng giá trị mock.
+- Thêm endpoint mới: thêm kiểm tra phân quyền (xem `AuthorizationCoverageTest`).
+- Thêm module mới: đăng ký trong `ArchitectureTest` nếu cần.
+
+## Giới hạn đã biết
+
+- Android chỉ có một file test (`ApiClientTest.kt`) và không chạy trong CI.
+- Chưa có test trên thiết bị hoặc simulator thật cho luồng mobile.
+- Luồng thanh toán với sandbox PSP thật: chưa có bằng chứng (xem [DECISIONS.md](DECISIONS.md)).
+- Số test pass ở trên là một lần chạy (2026-11-21). Chạy `./mvnw -B test` để có số mới.
