@@ -115,6 +115,7 @@ async function login(page, email, password) {
         await shot(page, 'f4-owner-before-approve');
         await approve.click();
         await page.locator('#approve').waitFor({ state: 'detached', timeout: 10000 });
+        await page.getByText('Chờ chủ account duyệt', { exact: true }).first().waitFor({ state: 'detached', timeout: 10000 });
         await shot(page, 'f4-owner-after-approve');
         fs.writeFileSync(ORDER_FILE, `${BASE}${href}`);
         return `đơn ${href} đã duyệt; khu "Duyệt đơn" đã biến mất`;
@@ -140,12 +141,20 @@ async function login(page, email, password) {
         if (!fs.existsSync(ORDER_FILE)) throw new Error('F4 chưa ghi địa chỉ đơn; không có đơn để xác minh');
         const url = fs.readFileSync(ORDER_FILE, 'utf8').trim();
         await page.goto(url, { waitUntil: 'networkidle' });
-        const stillAwaiting = await page.locator('#approve').count();
-        const expectMissing = NEGATIVE ? false : true; // negative: đòi hỏi khu duyệt vẫn còn
-        if (expectMissing && stillAwaiting > 0) throw new Error('khu "Duyệt đơn" vẫn còn hiện với người thuê');
-        if (NEGATIVE && stillAwaiting === 0) throw new Error('negative control: khu duyệt không còn (kỳ vọng sai có chủ đích)');
+        await dismissTourIfShown(page, 'f2-renter-order');
+        // Khu "Duyệt đơn" chỉ hiện với chủ, nên kiểm tra nhãn trạng thái nhìn thấy được.
+        const approved = page.getByText('Đã xác nhận', { exact: true }).first();
+        const awaiting = page.getByText('Chờ chủ account duyệt', { exact: true });
+        if (NEGATIVE) {
+          // Kỳ vọng sai có chủ đích: đòi nhãn "Chờ chủ account duyệt" vẫn còn (đã bị đổi, nên luồng phải đỏ).
+          await awaiting.first().waitFor({ state: 'visible', timeout: 5000 });
+        } else {
+          await approved.waitFor({ state: 'visible', timeout: 10000 });
+          const stillAwaiting = await awaiting.count();
+          if (stillAwaiting > 0) throw new Error('nhãn "Chờ chủ account duyệt" vẫn còn sau khi duyệt');
+        }
         await shot(page, 'f2-renter-order-after-approve');
-        return `đơn ${url} không còn khu "Duyệt đơn"`;
+        return `đơn ${url} hiển thị "Đã xác nhận", không còn "Chờ chủ account duyệt"`;
       });
       await context.close();
     }
@@ -160,8 +169,13 @@ async function login(page, email, password) {
         await page.goto(`${BASE}/admin/listings`, { waitUntil: 'networkidle' });
         const expectedTitle = NEGATIVE ? 'Tiêu đề không có thật' : 'Kiểm duyệt bài đăng';
         await page.locator('h1', { hasText: expectedTitle }).waitFor({ state: 'visible', timeout: 10000 });
+        // Mỗi bài đăng là một thẻ div.card.stack (khu xác minh account là section, không tính).
+        await page.getByText(/Không có listing|Đang tải|Chờ/).first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+        const cards = await page.locator('div.card.stack').count();
+        const empty = await page.getByText('Không có listing ở trạng thái này.').count();
+        if (cards < 1 && !NEGATIVE) throw new Error(`không có bài đăng nào ở trạng thái mặc định (thẻ=${cards}, trống=${empty})`);
         await shot(page, 'f3-admin-listings');
-        return `tiêu đề "${expectedTitle}" hiển thị`;
+        return `tiêu đề "${expectedTitle}" hiển thị; ${cards} bài đăng ở trạng thái mặc định`;
       });
       await context.close();
     }
