@@ -41,6 +41,9 @@ Mục 1.1 và 1.2 là baseline: agent chạy trước khi bắt đầu để bi�
   - Baseline trước mọi thay đổi (commit `dev` 5828bd2): **116 test, 0 lỗi, 0 fail, 0 skip**, BUILD SUCCESS.
   - Sau §2.0 (commit `e65c1d4`): **184 test, 0 fail, 1 lỗi**. Lỗi duy nhất là `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` (xem 1.2). Lượng test tăng 68 từ `StartupSafetyCheckTest`.
   - Chạy lại riêng `MoneyAndApprovalIT` 3 lần trên cùng commit: 2 pass, 1 lỗi.
+  - Sau khi đưa PR #3 vào chuỗi (merge commit trên `claude/dev-seed-wallet`): **340 test, 0 lỗi, 0 fail, 0 skip**, BUILD SUCCESS; `MoneyAndApprovalIT` chạy 5/5 lần liên tiếp đều exit 0.
+  - Bản sửa deadlock (PR #3, nhánh `claude/festive-archimedes-ov4031`, commit `a65d65e`): trước khi sửa `MoneyAndApprovalIT.concurrentBooking_exactlyOneWins` đỏ do deadlock (`40P01`) khi 10 đơn đồng thời vào cùng account; đã sửa trong `OrderService.create` bằng khóa `account_calendar_lock` trước khi chèn. Chạy lặp `MoneyAndApprovalIT` 10/10 lần xanh trên nhánh PR #3.
+
 - **Kiểm thử:** chính lệnh trên `[M]` (DB thật cục bộ nhưng không gọi dịch vụ ngoài).
 
 ### 1.2 CI xanh lần đầu
