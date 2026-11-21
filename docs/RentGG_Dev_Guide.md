@@ -303,7 +303,12 @@ Thứ tự đề xuất: **PayOS trước** (theo `deploy/.env.prod.example`); c
 - **Xong khi:** `./gradlew assembleRelease` tạo APK đã ký khi có biến; khi thiếu, rơi về bản unsigned như hiện tại.
 - **Kiểm thử:** `[M]` (build). Keystore thật là `[S]`.
 
-- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ LÀM CODE, CHƯA XÁC MINH BẢN KÝ.** `android/app/build.gradle.kts` đọc `RENTGG_KEYSTORE_PATH`, `RENTGG_KEYSTORE_PASSWORD`, `RENTGG_KEY_ALIAS`, `RENTGG_KEY_PASSWORD` từ biến môi trường hoặc `~/.gradle/gradle.properties` (ngoài repo). Có path mà thiếu biến khác thì build dừng với thông báo rõ. Không có path thì bản release không ký (unsigned). `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties` (`*.jks` đã có sẵn). **Chưa chạy được `./gradlew assembleRelease`** trong cloud: `dl.google.com` bị proxy chặn (403), Maven Central trả 429 cho plugin AGP 8.7.3, nên không tải được plugin Android và không có Android SDK. Vì vậy chưa xác minh được APK ký, cũng chưa xác minh nhánh unsigned. Cần chạy trên máy có SDK, hoặc trong CI có quyền tải SDK, để xác nhận.
+- **Kết quả §6.2 (2026-11-21, nhánh `claude/row-23-android-signing`): ĐÃ XÁC MINH.** Cần `dl.google.com` trong danh sách host được phép (đã thêm vào môi trường Default, có sự đồng ý của chủ dự án). Cài SDK (`platforms;android-35`, `build-tools;35.0.0`) bằng `sdkmanager`. Kết quả:
+  - Không biến ký: `assembleRelease` tạo `app-release-unsigned.apk`; `apksigner verify` báo không có chữ ký, đúng như kỳ vọng.
+  - Có biến ký với keystore thử tạm (ngoài repo, đã xóa sau khi chạy): tạo `app-release.apk`; `apksigner verify --print-certs` đọc đúng chứng chỉ của keystore thử.
+  - Thiếu `RENTGG_KEY_ALIAS` khi đã có `RENTGG_KEYSTORE_PATH`: build dừng ngay với thông báo tiếng Việt.
+  - Lần đầu Maven Central trả 429 khi Gradle tải nhiều artifact cùng lúc; chạy lại sau ít phút thì xong. Đây là lỗi hạ tầng, không liên quan tới code.
+  - Keystore thật không nằm trong repo; `.gitignore` chặn `*.keystore`, `*.p12`, `keystore.properties`.
 
 ### 6.3 Android: E2E trên emulator hoặc điện thoại thật
 - **Hiện trạng:** `android/PROGRESS.md` ghi máy báo `VirtualizationFirmwareEnabled = False`. Trạng thái này **chưa xác minh lại** hôm nay.
