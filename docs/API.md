@@ -7,8 +7,8 @@ Ngày kiểm tra **2026-11-21**, theo code trong `backend/src/main/java/com/rent
 | Mục | Giá trị |
 |---|---|
 | Base path | `/api/v1` |
-| Số endpoint (annotation `@GetMapping`, `@PostMapping`, `@PutMapping`, `@PatchMapping`, `@DeleteMapping`) | 149 |
-| Số controller (`@RestController`) | 25 |
+| Số endpoint (annotation `@GetMapping`, `@PostMapping`, `@PutMapping`, `@PatchMapping`, `@DeleteMapping`) | 149. Không tính webhook, vì webhook khai bằng `@RequestMapping(method = …)` |
+| Số class `@RestController` | 26, trong 25 file (`PaymentController.java` chứa thêm class lồng `DevPaymentController`) |
 | Định dạng | JSON; upload ảnh và tin nhắn hỗ trợ có đính kèm qua `multipart/form-data` |
 | Xác thực | `Authorization: Bearer <access token>` |
 | Phân quyền | `@PreAuthorize` trên từng endpoint; test `AuthorizationCoverageTest` kiểm tra mọi controller |
@@ -34,7 +34,7 @@ Số trong cột "Endpoint" đếm theo annotation trong file, ngày 2026-11-21.
 | listing | `ListingController` | `/api/v1` | 17 |
 | listing | `ListingAppealController` | `/api/v1` | 4 |
 | order | `OrderController` | `/api/v1/orders` | 16 |
-| payment | `PaymentController` | `/api/v1/payments` | 3 (có thêm endpoint dev, xem bên dưới) |
+| payment | `PaymentController` | `/api/v1/payments` | 3: `/providers`, `/return/{provider}`, và `POST /api/v1/dev/payments/{intentId}/simulate-success` (class lồng, xem bên dưới) |
 | dispute | `DisputeController` | `/api/v1` | 9 |
 | dispute | `DisputeAppealController` | `/api/v1` | 3 |
 | wallet | `WalletController` | `/api/v1` | 10 |
@@ -51,7 +51,7 @@ Ghi chú:
 
 - `GlobalExceptionHandler` là `@RestControllerAdvice`, không có endpoint.
 - Module `deposit` không có controller. Cọc đi qua `OrderController` và `WalletController`.
-- `PaymentController` có endpoint `/api/v1/dev/payments` (một `@RequestMapping` cấp method), bật ở profile `dev` và `test`.
+- `PaymentController.java` chứa class lồng `DevPaymentController` (`@RequestMapping("/api/v1/dev/payments")`, `@Profile({"dev", "test"})`): endpoint giả lập thanh toán thành công, chỉ có ở `dev` và `test`.
 
 ## Endpoint công khai (không cần token)
 
@@ -110,7 +110,7 @@ Mọi lỗi trả về JSON dạng `ErrorResponse` (`backend/src/main/java/com/r
 
 ## Tài liệu OpenAPI
 
-- Bật ở profile `dev` và `test`: `/v3/api-docs` và `/swagger-ui/index.html`.
+- Bật ở `dev` và `test` (mặc định của springdoc): `/v3/api-docs` và `/swagger-ui.html`.
 - Tắt ở `prod` và `staging`. Các test `com/rentgg/docs/*` kiểm tra điều này (`ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT`).
 - Lấy OpenAPI JSON khi backend dev chạy: `curl http://localhost:8080/v3/api-docs` (cần profile `dev`).
 

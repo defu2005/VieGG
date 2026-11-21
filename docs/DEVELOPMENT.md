@@ -18,8 +18,8 @@ Ngày kiểm tra **2026-11-21**. Mục này chỉ mô tả cách chạy. Quy t�
 |---|---|---|
 | PostgreSQL | 5432 | Tài khoản dev: `rentgg` |
 | Backend | 8080 | Profile `dev` |
-| Web (Vite) | 5173 | Cổng mặc định của `vite.config.ts` |
-| Web (Vite, cấu hình preview) | 5273 | Chỉ dùng khi `.claude/launch.json` khởi chạy với cổng này |
+| Web (Vite) | 5173 | Cổng trong `frontend/vite.config.ts` |
+| Web (Vite) trên máy Windows dev | 5273 | Theo `CLAUDE.md`. Cấu hình preview nằm ở `.claude/launch.json` |
 
 Web gọi API qua đường dẫn tương đối `/api/v1`. Vite proxy `/api` tới `VITE_API_TARGET`, mặc định `http://localhost:8080`.
 
@@ -37,6 +37,8 @@ cd backend
 ```
 
 Kiểm tra: `curl http://localhost:8080/actuator/health` trả `UP`.
+
+Đổi cổng: đặt `SERVER_PORT` và `RENTGG_PUBLIC_BASE_URL` cho khớp (cơ chế biến môi trường của Spring; chưa kiểm chứng trên máy này).
 
 Chạy với database khác: đặt `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` (tên biến lấy theo `application.yml`). Đừng dùng database `rentgg_test` cho việc chạy thử.
 
@@ -65,7 +67,7 @@ cp .env.example .env     # điền giá trị dev; không commit file .env
 docker compose up -d db
 ```
 
-Không chạy `docker compose up db` cùng lúc với PostgreSQL cài trực tiếp: cả hai đều chiếm cổng 5432.
+Không chạy `docker compose up db` cùng lúc với PostgreSQL cài trực tiếp: cả hai đều chiếm cổng 5432. Trên máy Windows dev theo `CLAUDE.md`, không dùng container `db`; dùng PostgreSQL portable.
 
 Triển khai production dùng `deploy/docker-compose.prod.yml`. Xem [RentGG_Production_Deploy.md](RentGG_Production_Deploy.md).
 
@@ -89,6 +91,17 @@ Cấu hình đầy đủ và giá trị mặc định dev nằm ở `backend/src
 ## Tài khoản mẫu
 
 Profile `dev` seed dữ liệu mẫu (`backend/src/main/java/com/rentgg/jobs/DevDataSeeder.java`). Email có đuôi `@rentgg.dev`, ví dụ `admin@`, `owner@`, `renter@`. Mật khẩu là hằng `DevDataSeeder.DEV_PASSWORD`; tài liệu này không ghi giá trị.
+
+## Luồng thử tay (profile dev)
+
+1. Đăng nhập bằng `renter@rentgg.dev` (mật khẩu theo `DevDataSeeder.DEV_PASSWORD`).
+2. Tìm listing: `GET /api/v1/listings/search`.
+3. Tạo đơn: `POST /api/v1/orders`, bắt buộc header `Idempotency-Key`.
+4. Thanh toán: `POST /api/v1/orders/{id}/pay`. Phản hồi có `checkoutUrl` và `intentId`.
+5. Giả lập thanh toán thành công: `POST /api/v1/dev/payments/{intentId}/simulate-success` (chỉ `dev` và `test`).
+6. Chạy mọi job ngay: `POST /api/v1/dev/jobs/run-all`, cần quyền `dev:run_jobs` (`@PreAuthorize` trong `jobs/DevController.java`).
+
+Đơn có thể ở trạng thái `AWAITING_OWNER_APPROVAL`, chờ chủ đơn duyệt, tùy cấu hình listing.
 
 ## Tua thời gian
 

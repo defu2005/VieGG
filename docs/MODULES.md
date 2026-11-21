@@ -12,7 +12,7 @@ Cột **Hạng** là thứ tự tầng trong `ArchitectureTest.RANK` (`backend/s
 |---|---|---|---|
 | `shared` | 0 | Lỗi thống nhất (`error`), bảo mật và JWT (`security`), mã hóa AES-GCM (`crypto`), outbox (`outbox`), lưu media (`media`), trace id và giới hạn body (`web`) | không có |
 | `config` | 0 | Bean cấu hình: `Clock` (`CoreConfig`), kiểm tra an toàn khi khởi động (`StartupSafetyCheck`), `RentGgProperties` | không có |
-| `audit` | 1 | Audit append-only cho thao tác nhạy cảm và mọi lần xem credentials | `/api/v1/admin/audit` |
+| `audit` | 1 | Audit append-only cho thao tác nhạy cảm (ví dụ tạo và xoay vòng credential) | `/api/v1/admin/audit` |
 | `notification` | 1 | Thông báo **in-app** theo sự kiện. Chưa có email hay push (xem [DECISIONS.md](DECISIONS.md)) | `/api/v1/notifications` |
 | `identity` | 2 | Đăng ký, đăng nhập, refresh token, hồ sơ, TOTP cho nhân viên, RBAC, quản trị người dùng | `/api/v1/auth`, `/api/v1/me`, `/api/v1/me/mfa/totp`, `/api/v1/admin/users`, `/api/v1/admin/rbac`, `/api/v1/staff/users` |
 | `catalog` | 2 | Danh mục game và tham số chính sách theo game | `/api/v1` (`GameController`: `/games`) |
@@ -45,16 +45,37 @@ Quy tắc (đã kiểm tra tự động):
 2. Module không import `infrastructure` của module khác (`ArchitectureTest.noCrossModuleRepositoryAccess`). Cần dữ liệu của module khác thì gọi service hoặc đọc qua port.
 3. Khi tầng thấp cần phản ứng với tầng cao, dùng **port ngược** (interface do tầng thấp khai báo, tầng cao cài đặt). Ví dụ: `PaymentCapturedHandler`, `OrderLifecycleListener`, `StaffDirectory`.
 
-Phụ thuộc chính, theo import thực tế ở các tầng trên:
+Ma trận import thực tế (quét import `com.rentgg.<module>` trong mã nguồn, kiểm tra 2026-11-21). Lệnh để kiểm lại cho một module:
 
-```text
-jobs ──► order, dispute, listing, deposit, wallet, payment, ...   (chỉ jobs được gọi nhiều module)
-order ──► listing, gameaccount, payment, deposit, ledger, notification, audit
-dispute, wallet, approval, helpdesk ──► (tầng 6, dùng ledger, deposit, audit, notification)
-payment ──► ledger (qua port), notification
+```bash
+grep -rhoE "import com\.rentgg\.[a-z]+" backend/src/main/java/com/rentgg/<module> | sort -u
 ```
 
-Sơ đồ trên là tóm tắt, không đầy đủ. Muốn chắc, chạy `ArchitectureTest` hoặc xem import.
+| Module (hạng) | Import từ các module |
+|---|---|
+| `shared` (0) | `config` |
+| `config` (0) | — |
+| `audit` (1) | `shared` |
+| `notification` (1) | `shared` |
+| `identity` (2) | `audit`, `config`, `notification`, `shared` |
+| `catalog` (2) | `audit`, `shared` |
+| `ledger` (2) | — |
+| `settings` (2) | `audit`, `shared` |
+| `gameaccount` (3) | `audit`, `catalog`, `config`, `identity`, `shared` |
+| `payment` (3) | `audit`, `config`, `ledger`, `shared` |
+| `deposit` (3) | `ledger`, `payment`, `shared` |
+| `listing` (4) | `audit`, `catalog`, `gameaccount`, `identity`, `shared` |
+| `order` (5) | `audit`, `catalog`, `config`, `deposit`, `gameaccount`, `identity`, `ledger`, `listing`, `payment`, `shared` |
+| `dispute` (6) | `audit`, `catalog`, `config`, `deposit`, `gameaccount`, `identity`, `ledger`, `order`, `payment`, `shared` |
+| `wallet` (6) | `audit`, `deposit`, `dispute`, `identity`, `ledger`, `order`, `payment`, `settings`, `shared` |
+| `approval` (6) | `audit`, `catalog`, `config`, `gameaccount`, `ledger`, `shared`, `wallet` |
+| `helpdesk` (6) | `audit`, `dispute`, `identity`, `order`, `shared` |
+| `legal` (không có) | `audit`, `shared` |
+| `jobs` (7) | `approval`, `catalog`, `config`, `deposit`, `gameaccount`, `identity`, `ledger`, `listing`, `order`, `payment`, `shared`, `wallet` |
+
+Đọc bảng: module hạng cao gọi module hạng thấp hoặc cùng hạng là hợp lệ. Module `legal` không nằm trong `RANK`, nên bảng này không được kiểm tra tự động cho nó.
+
+Đây là quét import tĩnh. Không bao gồm gọi qua reflection hay cấu hình Spring. Quy tắc tự động là `ArchitectureTest`; bảng này chỉ để đọc nhanh.
 
 ## Nơi bắt đầu đọc code
 

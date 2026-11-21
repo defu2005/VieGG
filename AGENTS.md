@@ -65,4 +65,4 @@ Tài liệu kỹ thuật gồm `README.md` và `docs/ARCHITECTURE.md`, `MODULES.
 3. Không ghi secret, mật khẩu, email, đường dẫn máy cá nhân, hay giá trị cấu hình thật.
 4. Khi nói về năng lực, gắn trạng thái IMPLEMENTED, PARTIAL, PLANNED hoặc UNKNOWN.
 5. Quyết định kiến trúc mới: thêm mục vào `docs/DECISIONS.md`. Không sửa mục cũ trừ khi quyết định đó đã thực sự đổi.
-6. Thực tế hiện tại: đã có migration V1–V37, số tiếp theo là V38 (xem `docs/DATABASE.md`). Quy tắc số migration ở trên cần được người quản lý dự án xác nhận lại.
+6. Thực tế hiện tại: đã có migration V1–V37. Số migration tiếp theo là số lớn nhất trong `db/migration` cộng 1 (xem `docs/DATABASE.md`). Quy tắc số migration ở trên cần được người quản lý dự án xác nhận lại.

@@ -49,7 +49,8 @@ PSP (webhook) ──────┘                         │
 - Refresh token được lưu trong bảng `refresh_tokens` (IMPLEMENTED).
 - Endpoint công khai gồm đăng ký, đăng nhập, refresh, logout; catalog game và tìm kiếm listing; webhook và return URL của PSP; Swagger UI và OpenAPI khi bật; `/actuator/health`, `/actuator/info`, `/actuator/prometheus`. Mọi `/api/v1/**` còn lại yêu cầu đăng nhập.
 - Phân quyền theo `@PreAuthorize`. Test `AuthorizationCoverageTest` bắt lỗi nếu controller nào thiếu annotation.
-- Credentials của account game được mã hóa AES-GCM (`shared/crypto`), có khóa theo phiên bản (`credential_versions`). Mỗi lần xem được ghi vào audit.
+- Credentials của account game được mã hóa `AES/GCM/NoPadding` (`shared/crypto/CredentialCipher.java`). Khóa dùng để mã hóa mới được chọn theo `RENTGG_CREDENTIAL_ACTIVE_KEY_ID`. Bảng `credential_versions` lưu các phiên bản; phiên bản đang dùng có `status = 'ACTIVE'`.
+- Tạo và xoay vòng credential được ghi audit (`CREDENTIAL_CREATED`, `CREDENTIAL_ROTATED`). Việc ghi audit mỗi lần xem credential: UNKNOWN, chưa thấy trong code.
 - Giới hạn tốc độ bằng Bucket4j (`shared/ratelimit`); chống brute force đăng nhập có test `LoginBackoffIT`.
 - Giới hạn kích thước body JSON bởi `JsonBodyLimitFilter` (`shared/web`).
 - Log có trace id (`TraceIdFilter`, `RequestLogContext`), xuất JSON bằng logstash encoder.
@@ -57,7 +58,7 @@ PSP (webhook) ──────┘                         │
 
 ## Outbox và sự kiện
 
-- Sự kiện nghiệp vụ được ghi vào bảng `outbox_events` trong cùng transaction với thay đổi dữ liệu.
+- Sự kiện nghiệp vụ được ghi vào bảng `outbox_events` bởi `OutboxService.record`. Method này là `@Transactional(propagation = MANDATORY)`, nên chỉ chạy trong transaction của thao tác nghiệp vụ và được commit cùng dữ liệu.
 - Job `publishOutbox` (`jobs/JobScheduler.java`) chạy mỗi 10 giây (`fixedDelay = PT10S`) và phát các sự kiện bằng Spring `ApplicationEvent`. Số lần thử tối đa là `rentgg.outbox.max-attempts` (mặc định 10).
 - Các listener nằm trong module nhận sự kiện. Không có message broker bên ngoài.
 - Trạng thái: IMPLEMENTED. Đây là giao tiếp trong process, không phải giữa các service.
@@ -65,12 +66,12 @@ PSP (webhook) ──────┘                         │
 ## Job định kỳ
 
 - `jobs/JobScheduler.java` có 13 method `@Scheduled` (kiểm tra 2026-11-21 bằng `grep -c "@Scheduled" backend/src/main/java/com/rentgg/jobs/JobScheduler.java`). Mỗi method có `@SchedulerLock` (ShedLock, bảng `shedlock`) để một instance chạy một lần.
-- Lịch cron đọc từ `rentgg.jobs.cron` (mặc định trong `application.yml`: mỗi phút). `publishOutbox` và `retryFailedRefunds` có lịch riêng.
+- 12 method dùng cron `${rentgg.jobs.cron}` (mặc định trong `application.yml`: `0 * * * * *`, tức mỗi phút). `publishOutbox` dùng `fixedDelay = PT10S`. Kiểm tra: `grep -c 'cron = "${rentgg.jobs.cron}"' backend/src/main/java/com/rentgg/jobs/JobScheduler.java`.
 - Logic nằm trong `jobs/Jobs.java`.
 
 ## Thời gian nghiệp vụ (`Clock`)
 
-- Toàn bộ backend đọc thời gian qua bean `Clock` (`config/CoreConfig.java`), không dùng `Instant.now()` trực tiếp.
+- Code nghiệp vụ đọc thời gian qua bean `Clock` (`config/CoreConfig.java`). Có một ngoại lệ chủ ý: `PaymentService` dùng `Instant.now()` cho thời hạn checkout của PSP, vì PSP chạy theo giờ thật (có ghi chú trong code). Kiểm tra: `grep -rn "Instant.now()" backend/src/main/java`.
 - Test dùng `MutableClock` để đặt thời gian.
 - Ở profile `dev`, `DevClock` (`jobs/devtime/`) cho phép tua thời gian để kiểm thử các luồng theo thời gian. Độ lệch lưu ở `backend/target/dev-clock-<port>.properties`. Mỗi cổng backend có đồng hồ riêng nhưng dùng chung database. Xem [DEVELOPMENT.md](DEVELOPMENT.md#tua-thời-gian).
 
@@ -86,7 +87,7 @@ PSP (webhook) ──────┘                         │
 ## Media
 
 - Mặc định ảnh và video lưu trong database.
-- Khi `rentgg.media.storage=s3`, `MediaStorageConfig` tạo `S3ObjectStorage` (dùng AWS SDK v2). Test `MediaObjectStorageIT` kiểm tra luồng này.
+- Khi `rentgg.media.storage=s3`, `MediaStorageConfig` tạo `S3ObjectStorage` (dùng AWS SDK v2). Test `shared/media/S3ObjectStorageTest` kiểm tra adapter này, dùng S3Proxy làm giả lập.
 - Trạng thái: IMPLEMENTED (cả hai chế độ). Chạy thật với bucket của nhà cung cấp: UNKNOWN.
 
 ## Cấu hình và profile
@@ -96,9 +97,9 @@ Nguồn: `backend/src/main/resources/application.yml`. Có ba khối profile:
 | Profile | Dòng trong `application.yml` (kiểm tra 2026-11-21) | Ghi chú |
 |---|---|---|
 | (mặc định) | đầu file | Cấu hình chung. Các biến có giá trị mặc định dùng cho dev |
-| `prod` | khoảng dòng 140 | Tắt `/v3/api-docs` và Swagger UI; media mặc định `s3` (`RENTGG_MEDIA_STORAGE`); FAKE payment mặc định `false` |
-| `staging` | khoảng dòng 157 | Như prod, dùng để kiểm thử trước khi lên prod |
-| `dev` | khoảng dòng 174 | Bật FAKE payment, seed dữ liệu mẫu, đồng hồ tua thời gian, API docs |
+| `prod` | khoảng dòng 140 | Tắt `/v3/api-docs` và Swagger UI; media mặc định `s3` (`RENTGG_MEDIA_STORAGE`); FAKE payment mặc định `false`; `RENTGG_STAFF_MFA_REQUIRED` phải là `true` (`StartupSafetyCheck`) |
+| `staging` | khoảng dòng 157 | Tắt `/v3/api-docs` và Swagger UI (chỉ khối này). Các kiểm tra an toàn của `StartupSafetyCheck` áp dụng cho cả staging và prod |
+| `dev` | khoảng dòng 174 | Bật FAKE payment, seed dữ liệu mẫu, đồng hồ tua thời gian; API docs bật theo mặc định của springdoc |
 
 Quy tắc:
 

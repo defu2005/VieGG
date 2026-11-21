@@ -43,12 +43,14 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 ### D-07: Sổ kế toán kép, bất biến bằng trigger (ACTIVE)
 
 - `ledger_transactions`, `ledger_postings`, `audit_logs` chặn UPDATE, DELETE, TRUNCATE (`V7__append_only_triggers.sql`).
-- Tổng posting của mỗi transaction phải bằng nhau (constraint trigger trì hoãn đến commit).
+- Khi commit, tổng posting của mỗi transaction phải bằng 0 và có ít nhất 2 posting (constraint trigger trì hoãn đến commit).
 - Sửa sai bằng bút toán đảo, không sửa dòng cũ.
 
-### D-08: Trigger chặn đơn chồng lịch account game (ACTIVE)
+### D-08: Ràng buộc đặt lịch ở tầng database (ACTIVE)
 
-- `V26__account_busy_blocks.sql`. Chặn ở tầng database, không chỉ ở code.
+- Đơn không chồng khoảng thuê trên cùng account: exclusion constraint `ex_orders_no_overlap` (`V14`).
+- Đơn không giao với lịch chặn của account: trigger `trg_orders_account_blocks` (`V26`).
+- Chặn ở database, không chỉ ở code.
 
 ### D-09: Flyway, migration bất biến sau khi áp dụng (ACTIVE, có lệch quy tắc)
 
@@ -57,8 +59,9 @@ Trạng thái: **ACTIVE** (đang đúng trong code), **OPEN** (chưa quyết ho�
 
 ### D-10: Credentials account game mã hóa AES-GCM theo phiên bản khóa (ACTIVE)
 
-- Bảng `credential_versions`; khóa đọc từ `RENTGG_CREDENTIAL_KEYS` và `RENTGG_CREDENTIAL_ACTIVE_KEY_ID`.
-- Mỗi lần xem credential được ghi vào audit.
+- Mã hóa `AES/GCM/NoPadding` (`shared/crypto/CredentialCipher.java`). Khóa đọc từ `RENTGG_CREDENTIAL_KEYS`; khóa dùng để mã hóa mới là `RENTGG_CREDENTIAL_ACTIVE_KEY_ID`.
+- Bảng `credential_versions` lưu các phiên bản; phiên bản đang dùng có `status = 'ACTIVE'`.
+- Tạo và xoay vòng credential được ghi audit. Ghi audit khi xem credential: UNKNOWN.
 
 ### D-11: Media mặc định lưu trong database, S3 bật ở prod (ACTIVE)
 

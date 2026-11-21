@@ -10,7 +10,7 @@ Ngày kiểm tra **2026-11-21**. Số liệu đếm từ file trong repo; số l
 | Web typecheck và build | `tsc`, Vite | CI (`web.yml`) | IMPLEMENTED |
 | Caddyfile | `caddy validate` | CI (`web.yml`) | IMPLEMENTED |
 | iOS unit | `swift test --disable-swift-testing` | CI (`ios.yml`, macOS) | IMPLEMENTED |
-| Android | Không có test tự động trong repo đã kiểm tra | — | UNKNOWN |
+| Android | 1 file test: `android/app/src/test/java/com/rentgg/app/ApiClientTest.kt` | Không chạy trong CI | PARTIAL |
 | E2E trình duyệt | Playwright | Thủ công, không trong CI | PARTIAL: xem mục E2E |
 | Kiểm thử trên thiết bị hoặc simulator thật | — | — | PLANNED |
 
@@ -31,7 +31,6 @@ Một số file đáng biết:
 | `AuthorizationCoverageTest.java` | Mọi controller có `@PreAuthorize` |
 | `com/rentgg/docs/` (`ApiDocsDisabledTest`, `ProdApiDocsDisabledIT`, `StagingApiDocsDisabledIT`, `ApiDocsEnabledInTestProfileIT`) | OpenAPI tắt ở prod và staging, bật ở test |
 | `shared/media/S3ObjectStorageTest.java` | Lưu media trên S3, dùng S3Proxy làm giả lập |
-| `MediaObjectStorageIT.java` | Luồng media ở tầng ứng dụng |
 | `PaymentProvidersIT.java`, `MomoWebhookIT.java`, `PayosWebhookIT.java` | Adapter PSP với webhook giả lập |
 | `LoginBackoffIT.java` | Giới hạn đăng nhập sai |
 
@@ -104,7 +103,7 @@ Web không có test đơn vị tự động (UNKNOWN: chưa tìm thấy script t
 
 ## Giới hạn đã biết
 
-- Không có test cho Android.
+- Android chỉ có một file test (`ApiClientTest.kt`) và không chạy trong CI.
 - Chưa có test trên thiết bị hoặc simulator thật cho luồng mobile.
 - Luồng thanh toán với sandbox PSP thật: chưa có bằng chứng (xem [DECISIONS.md](DECISIONS.md)).
 - Số test pass hiện tại: chưa đo lại trong tài liệu này. Chạy `./mvnw -B test` để có số.

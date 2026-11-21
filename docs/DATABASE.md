@@ -42,8 +42,11 @@ Bảng trên là đủ 42 bảng khi đối chiếu với `grep -ho "CREATE TABL
 Đã có trong migration (IMPLEMENTED):
 
 - **Append-only** (`V7__append_only_triggers.sql`): trigger chặn `UPDATE`, `DELETE` và `TRUNCATE` trên `audit_logs`, `ledger_transactions`, `ledger_postings`. Lỗi trả về là `Table ... is append-only`.
-- **Sổ cân bằng** (`V7`): constraint trigger `trg_ledger_balanced`, `AFTER INSERT ON ledger_postings`, `DEFERRABLE INITIALLY DEFERRED`. Kiểm tra tại commit: tổng các posting của một transaction bằng nhau và có ít nhất hai posting.
-- **Không đặt chồng lịch account game**: trigger `trg_orders_account_blocks` (`V26__account_busy_blocks.sql`, hàm `orders_check_account_blocks`) khóa lịch của account game, rồi báo lỗi nếu khoảng thuê (`rental_period`) của đơn giao với `account_blocks` cùng account. Đơn ở trạng thái đã giữ chỗ và chỉ thu hẹp khoảng thuê thì được bỏ qua kiểm tra.
+- **Sổ cân bằng** (`V7`): constraint trigger `trg_ledger_balanced` (`AFTER INSERT ON ledger_postings`, `DEFERRABLE INITIALLY DEFERRED`) gọi `check_ledger_tx_balanced()`. Khi commit, tổng `amount` của các posting cùng `transaction_id` phải bằng 0, và phải có ít nhất 2 posting. Lỗi trả về là `check_violation`.
+- **Đơn không chồng khoảng thuê trên cùng account** (`V14`): exclusion constraint `ex_orders_no_overlap` (`EXCLUDE USING gist (game_account_id WITH =, rental_period WITH &&)`), áp dụng khi `status` thuộc `PENDING_PAYMENT`, `AWAITING_OWNER_APPROVAL`, `CONFIRMED`, `IN_RENTAL`. `rental_period` là cột sinh tự động, gồm cả thời gian gia hạn đang được giữ.
+- **Đơn không giao với lịch chặn của account** (`V26`): trigger `trg_orders_account_blocks` gọi `orders_check_account_blocks()`. Hàm khóa lịch của account, rồi báo lỗi nếu `rental_period` của đơn giao với `account_blocks.period` cùng account. Đơn đã giữ chỗ và chỉ thu hẹp khoảng thuê thì bỏ qua kiểm tra.
+- **Duyệt không tự phê duyệt** (`V5`): `approval_requests` có `CONSTRAINT ck_approval_four_eyes CHECK (approved_by IS NULL OR approved_by <> requested_by)`.
+- Kiểm tra toàn bộ ràng buộc: `grep -n "EXCLUDE\|ex_orders_no_overlap\|CHECK\|TRIGGER" backend/src/main/resources/db/migration/*.sql`.
 
 ## Migration
 

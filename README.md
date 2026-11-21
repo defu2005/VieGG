@@ -17,6 +17,8 @@ scripts/        Script hỗ trợ (db.cmd cho Windows, e2e)
 docker-compose.yml   Môi trường dev: PostgreSQL + backend
 ```
 
+Module backend và phụ thuộc giữa chúng: [docs/MODULES.md](docs/MODULES.md).
+
 ## Tài liệu
 
 | Tài liệu | Nội dung |
@@ -56,10 +58,10 @@ npm run dev       # http://localhost:5173, proxy /api tới backend
 Docker Compose (có `.env` copy từ `.env.example`):
 
 ```bash
-docker compose up -d db
+docker compose up -d db   # Máy Windows dev theo CLAUDE.md: không dùng container này
 ```
 
-Tài khoản mẫu và luồng thử tay ở profile `dev`: xem [DEVELOPMENT.md](docs/DEVELOPMENT.md#tài-khoản-mẫu).
+Tài khoản mẫu và luồng thử tay ở profile `dev`: xem [DEVELOPMENT.md](docs/DEVELOPMENT.md#luồng-thử-tay-profile-dev).
 
 ## Kiểm thử
 
