@@ -148,7 +148,8 @@ export function OrderDetailPage() {
   const { order: o, deposit, refunds } = data;
   const isRenter = me?.id === o.renterId;
   const isOwner = me?.id === o.ownerId;
-  const canHandover = isRenter && o.status === 'CONFIRMED' && !o.handoverConfirmedAt;
+  // HandoverService accepts handover only when the order is IN_RENTAL.
+  const canHandover = isRenter && o.status === 'IN_RENTAL' && !o.handoverConfirmedAt;
   const canViewCredentials = isRenter && (o.status === 'CONFIRMED' || o.status === 'IN_RENTAL');
   const canCancel = (isRenter || isOwner) && (o.status === 'PENDING_PAYMENT' || o.status === 'AWAITING_OWNER_APPROVAL' || o.status === 'CONFIRMED');
   const canOtp = handoverMode === 'OWNER_ASSISTED_OTP' && (o.status === 'CONFIRMED' || o.status === 'IN_RENTAL');
