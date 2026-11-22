@@ -24,6 +24,9 @@ import { FlashMessages, useFlash } from '../lib/useFlash';
 
 const STATUSES: DisputeStatus[] = ['OPEN', 'RESOLVED', 'REJECTED'];
 
+// Renter-side complaints: the owner's deposit is not deducted here (the field is hidden and 0 is sent).
+const RENTER_DISPUTE_TYPES: DisputeType[] = ['RENTER_LOGIN_FAILED', 'RENTER_NOT_AS_DESCRIBED', 'RENTER_RISK'];
+
 export function SupportDisputesPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
@@ -162,7 +165,7 @@ function DisputeReview({ dispute: d, onResolved }: { dispute: Dispute; onResolve
         method: 'POST',
         body: {
           decision,
-          depositDeduction,
+          depositDeduction: RENTER_DISPUTE_TYPES.includes(d.type) ? 0 : depositDeduction,
           rentRefund,
           compensation,
           reasonCode,
@@ -254,10 +257,12 @@ function DisputeReview({ dispute: d, onResolved }: { dispute: Dispute; onResolve
                 <option value="REJECT">Bác khiếu nại</option>
               </select>
             </div>
-            <div className="field">
-              <label htmlFor={`ded-${d.id}`}>Khấu trừ cọc (đ)</label>
-              <input id={`ded-${d.id}`} type="number" min={0} value={depositDeduction} onChange={(e) => setDepositDeduction(Number(e.target.value))} />
-            </div>
+            {!RENTER_DISPUTE_TYPES.includes(d.type) && (
+              <div className="field">
+                <label htmlFor={`ded-${d.id}`}>Khấu trừ cọc (đ)</label>
+                <input id={`ded-${d.id}`} type="number" min={0} value={depositDeduction} onChange={(e) => setDepositDeduction(Number(e.target.value))} />
+              </div>
+            )}
             <div className="field">
               <label htmlFor={`ref-${d.id}`}>Hoàn tiền thuê (đ)</label>
               <input id={`ref-${d.id}`} type="number" min={0} value={rentRefund} onChange={(e) => setRentRefund(Number(e.target.value))} />
