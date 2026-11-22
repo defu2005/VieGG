@@ -24,7 +24,8 @@ const ACTION_HELP: Record<string, string> = {
 };
 
 export function ApprovalsPage() {
-  const { can } = useAuth();
+  const { can, me } = useAuth();
+  const canReadHidden = can('game:read_hidden');
   const canListApprovals = can('approval:list');
   const [status, setStatus] = useState<ApprovalStatus>('PENDING');
   const [page, setPage] = useState(0);
@@ -34,10 +35,15 @@ export function ApprovalsPage() {
   const flash = useFlash();
 
   useEffect(() => {
+    // /games?all=true needs game:read_hidden; without it the backend answers 403.
+    if (!canReadHidden) {
+      setGameNames({});
+      return;
+    }
     api<GameView[]>('/games?all=true')
       .then((gs) => setGameNames(Object.fromEntries(gs.map((g) => [g.id, g.name]))))
       .catch(() => setGameNames({}));
-  }, []);
+  }, [canReadHidden]);
 
   const load = useCallback(() => {
     if (!canListApprovals) return;
@@ -119,9 +125,11 @@ export function ApprovalsPage() {
               {a.resultNote && <p className="muted">Kết quả: {a.resultNote}</p>}
               {a.status === 'PENDING' && (
                 <div className="row">
-                  <button className="btn btn-primary" disabled={flash.busy} onClick={() => decide(a, 'approve')}>
-                    Duyệt
-                  </button>
+                  {a.requestedBy !== me?.id && (
+                    <button className="btn btn-primary" disabled={flash.busy} onClick={() => decide(a, 'approve')}>
+                      Duyệt
+                    </button>
+                  )}
                   <button className="btn btn-danger" disabled={flash.busy} onClick={() => decide(a, 'reject')}>
                     Từ chối
                   </button>
