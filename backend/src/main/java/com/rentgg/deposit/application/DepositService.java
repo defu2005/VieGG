@@ -156,7 +156,10 @@ public class DepositService {
         return DepositView.of(d);
     }
 
-    /** releaseDeposits job (§9): POST_RENTAL_HOLD past hold_until, no dispute → refund. */
+    /**
+     * releaseDeposits job (§9): only POST_RENTAL_HOLD deposits past hold_until are refunded. A deposit with an open
+     * OWNER_DAMAGE / ACCOUNT_TAKEOVER dispute is DISPUTED and is excluded by status (see DisputeIT.ownerDamage_partialDeduction).
+     */
     public int releaseDue(int batchSize) {
         int n = 0;
         for (UUID id : deposits.findReleasable(clock.instant(), batchSize)) {
