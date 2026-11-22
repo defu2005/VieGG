@@ -210,6 +210,8 @@ export function AdminListingsPage() {
  * so these never show up in the listing queue on their own.
  */
 function PendingAccounts({ onDone, onError }: { onDone: (msg: string) => void; onError: (err: unknown) => void }) {
+  const { can } = useAuth();
+  const canReadHidden = can('game:read_hidden');
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<PageResponse<GameAccount> | null>(null);
   const accounts = result?.content ?? null;
@@ -231,10 +233,11 @@ function PendingAccounts({ onDone, onError }: { onDone: (msg: string) => void; o
   }, [page]);
 
   useEffect(() => {
+    if (!canReadHidden) return;
     api<GameView[]>('/games?all=true')
       .then((gs) => setGames(Object.fromEntries(gs.map((g) => [g.id, g.name]))))
       .catch(() => undefined);
-  }, []);
+  }, [canReadHidden]);
 
   const verify = async (id: string) => {
     setBusyId(id);

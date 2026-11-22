@@ -970,7 +970,7 @@ function ListingRow({
         </div>
         <StatusBadge status={l.status} />
       </div>
-      {l.reviewNote && (
+      {l.reviewNote && (l.status === 'REJECTED' || l.status === 'SUSPENDED') && (
         <p className="error">
           {l.status === 'SUSPENDED' ? 'Lý do đình chỉ' : 'Lý do từ chối'}: {l.reviewNote}
         </p>

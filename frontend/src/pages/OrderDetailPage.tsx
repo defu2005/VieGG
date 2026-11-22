@@ -152,7 +152,8 @@ export function OrderDetailPage() {
   const canHandover = isRenter && o.status === 'IN_RENTAL' && !o.handoverConfirmedAt;
   const canViewCredentials = isRenter && (o.status === 'CONFIRMED' || o.status === 'IN_RENTAL');
   const canCancel = (isRenter || isOwner) && (o.status === 'PENDING_PAYMENT' || o.status === 'AWAITING_OWNER_APPROVAL' || o.status === 'CONFIRMED');
-  const canOtp = handoverMode === 'OWNER_ASSISTED_OTP' && (o.status === 'CONFIRMED' || o.status === 'IN_RENTAL');
+  // Backend requestOtp/postOtpNote accept only IN_RENTAL (HandoverService.java:174-191).
+  const canOtp = handoverMode === 'OWNER_ASSISTED_OTP' && o.status === 'IN_RENTAL';
 
   return (
     <div className="stack">
@@ -316,6 +317,9 @@ export function OrderDetailPage() {
         <section id="credentials" className="card stack">
           <h2>Thông tin đăng nhập</h2>
           <p className="muted">Chỉ xem được trong khung giờ thuê. Mỗi lần xem đều được ghi nhật ký.</p>
+          {isRenter && (
+            <p className="muted">Khung khiếu nại chỉ bắt đầu tính từ lần đầu bạn xem thông tin đăng nhập.</p>
+          )}
           {!credentials && reauthNeeded ? (
             <form className="form" onSubmit={onConfirmReauth}>
               <p className="muted">Nhập lại mật khẩu RentGG để xem thông tin đăng nhập.</p>
