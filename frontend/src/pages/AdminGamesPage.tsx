@@ -353,7 +353,7 @@ function GameForm({ game, onSaved }: { game?: GameView; onSaved: () => void }) {
         {!game && (
           <div className="field">
             <label htmlFor="g-code">Mã game</label>
-            <input id="g-code" {...invalidProps('code', 'g-code')} required pattern="[a-z0-9_-]{2,40}" title="2–40 ký tự: a-z, 0-9, _ hoặc -" value={code} onChange={(e) => { setCode(e.target.value); clearError('code'); }} />
+            <input id="g-code" {...invalidProps('code', 'g-code')} required pattern="[a-z0-9_\-]{2,40}" title="2–40 ký tự: a-z, 0-9, _ hoặc -" value={code} onChange={(e) => { setCode(e.target.value); clearError('code'); }} />
             <FieldError id="g-code" message={fieldErrors.code} />
           </div>
         )}
