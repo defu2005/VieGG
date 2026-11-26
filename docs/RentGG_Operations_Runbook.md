@@ -32,7 +32,7 @@ Chỉ profile `staging` và `prod`:
 
 Ngoài các kiểm tra trên, `RENTGG_CREDENTIAL_KEYS` được kiểm tra placeholder khi chạy staging/prod (`requireRealSecret`). Mục này nằm trong cùng file.
 
-Bảng biến môi trường đầy đủ hơn nằm ở `docs/RentGG_System_Design_v1.2.md` §14.3. Tài liệu đó nhắc biến webhook theo từng provider (`RENTGG_PAYMENT_WEBHOOK_SECRET_<PROVIDER>`). **Chưa kiểm chứng** trong code: không tìm thấy kiểm tra cho tên biến này khi đọc `StartupSafetyCheck`.
+Mẫu biến cho production: `deploy/.env.prod.example`. Bảng ở `docs/RentGG_System_Design_v1.2.md` §14.3 chỉ liệt kê một phần biến: không có `RENTGG_PUBLIC_BASE_URL`, `RENTGG_FRONTEND_BASE_URL`, `RENTGG_PAYMENT_FAKE_ENABLED`, `RENTGG_MEDIA_STORAGE`, `RENTGG_S3_*`, `BACKUP_*`, `DB_*`. Tài liệu đó cũng nhắc biến webhook theo từng provider (`RENTGG_PAYMENT_WEBHOOK_SECRET_<PROVIDER>`). **Chưa kiểm chứng** trong code: không tìm thấy kiểm tra cho tên biến này khi đọc `StartupSafetyCheck`.
 
 ## 2. Job định kỳ
 
@@ -43,12 +43,12 @@ Nguồn: `backend/src/main/java/com/rentgg/jobs/JobScheduler.java` (13 `@Schedul
 - Job nhận `Clock` của ứng dụng, nên dev có thể tua thời gian (xem `CLAUDE.md`).
 - Lỗi trong job: `Jobs.run()` bắt `RuntimeException`, ghi log `Job {name} failed`, tăng `rentgg_job_failures_total`, và trả về 0. Lỗi không dừng scheduler.
 
-Danh sách 13 job (tên trùng với method trong `Jobs.java`):
+Danh sách 13 job (tên trùng với method trong `Jobs.java`). Mô tả của 9 job đầu lấy từ `docs/RentGG_System_Design_v1.2.md` §9, chưa đối chiếu từng dòng với code. Bốn job đánh dấu * được mô tả theo mã đã đọc.
 
-| Job | Làm gì (theo code) |
+| Job | Làm gì |
 |---|---|
 | `expirePendingPayments` | Hết hạn đơn chờ thanh toán |
-| `expireExtensionPayments` | Hết hạn thanh toán gia hạn |
+| `expireExtensionPayments` * | Hết hạn thanh toán gia hạn chưa trả (`OrderJobs` gọi `extensions.expireUnpaid`) |
 | `expireOwnerApprovals` | Đơn quá hạn owner duyệt: `REJECTED`, hoàn 100% |
 | `startDueOrders` | Đến giờ bắt đầu: `IN_RENTAL` hoặc hủy nếu account chưa sẵn sàng |
 | `endDueOrders` | Hết giờ thuê: `ENDED`, cọc sang `POST_RENTAL_HOLD` |
@@ -56,9 +56,9 @@ Danh sách 13 job (tên trùng với method trong `Jobs.java`):
 | `releaseSellerHolds` | Giải phóng tiền giữ của người bán khi đến hạn |
 | `releaseDeposits` | Hoàn cọc `POST_RENTAL_HOLD` quá `hold_until` |
 | `markRotationOverdue` | Đánh dấu owner quá hạn đổi mật khẩu |
-| `markDisputeDeadlinesOverdue` | Đánh dấu khiếu nại quá hạn xử lý |
-| `markLegalNoticeDeadlines` | Đánh dấu hạn thông báo pháp lý |
-| `retryFailedRefunds` | Thử lại hoàn tiền `FAILED` có backoff |
+| `markDisputeDeadlinesOverdue` * | Khiếu nại quá hạn: đánh dấu quá hạn và ghi sự kiện `DisputeDeadlineOverdue` (`DisputeService.markDeadlinesOverdue`) |
+| `markLegalNoticeDeadlines` * | Thông báo pháp lý: đặt `overdue_at` khi quá `response_deadline`, đặt `reminded_at` khi sắp hết hạn, ghi sự kiện (`LegalNoticeService.markDeadlines`) |
+| `retryFailedRefunds` * | Thử lại refund `FAILED`, tối đa 10 lần, có backoff (xem mục 3) |
 | `publishOutbox` | Phát sự kiện outbox chưa phát |
 
 Lệch so với tài liệu: `docs/RentGG_System_Design_v1.2.md` §9 chỉ liệt kê 9 job. Bốn job `expireExtensionPayments`, `markDisputeDeadlinesOverdue`, `markLegalNoticeDeadlines`, `retryFailedRefunds` có trong code nhưng không có trong bảng §9. Khi có mâu thuẫn, lấy `Jobs.java` và `JobScheduler.java`.
@@ -75,15 +75,15 @@ Các mục dưới đây chỉ nêu cách kiểm tra theo mã. Không có quy tr
 
 **Outbox không phát.** Bảng `outbox_events`: `published_at IS NULL`, cột `attempts`, `last_error`. Job `publishOutbox` thử lại với backoff (`docs/RentGG_System_Design_v1.2.md` §10.1). Alert: `RentggOutboxStuck`, `RentggOutboxBacklog`.
 
-**Hoàn tiền thất bại.** Bảng `refunds` có trạng thái `FAILED` và cột `attempts`. Job `retryFailedRefunds` gọi `PaymentService.retryFailedRefunds`. Thời gian chờ giữa các lần thử là `min(3600, 60 × 2^min(attempts, 6))` giây (`backend/src/main/java/com/rentgg/payment/application/PaymentService.java`, dòng 404). Số lần thử tối đa là `MAX_REFUND_ATTEMPTS`. Alert: `RentggRefundRetryFailing`.
+**Hoàn tiền thất bại.** Bảng `refunds` có trạng thái `FAILED` và cột `attempts`. Job `retryFailedRefunds` gọi `PaymentService.retryFailedRefunds`. Thời gian chờ giữa các lần thử là `min(3600, 60 × 2^min(attempts, 6))` giây (`backend/src/main/java/com/rentgg/payment/application/PaymentService.java`, dòng 404). Số lần thử tối đa là 10 (`MAX_REFUND_ATTEMPTS = 10`, `backend/src/main/java/com/rentgg/payment/application/PaymentService.java` dòng 38). Alert: `RentggRefundRetryFailing`.
 
 **Hoàn tiền đi đâu.** `PaymentService.processRefund` đánh dấu refund `SUCCEEDED` với phương thức `wallet`. Bút toán ghi `REFUND_PAYABLE` → `SELLER_AVAILABLE` của người trả tiền. Tiền hoàn vào số dư ví RentGG của người thuê. Code không gọi API hoàn tiền của PSP. **Chưa kiểm chứng**: có quy trình nào khác chuyển tiền ra ngoài hay không.
 
 **Rút tiền của chủ account.** `WalletService.requestWithdrawal` ghi `WITHDRAWAL_REQUESTED`. Nhân viên tài chính đánh dấu `markPaid` (kèm `bankRef`) hoặc `markFailed`, mỗi lần ghi một bút toán (`backend/src/main/java/com/rentgg/wallet/application/WalletService.java`). Trong `backend/src/main/java/com/rentgg/payment` không có hàm chi tiền qua PSP (không tìm thấy `payout` ở đây). Việc chuyển khoản ngân hàng thực tế diễn ra ngoài hệ thống. **Chưa kiểm chứng** quy trình đó trên thực tế.
 
-**Webhook thanh toán.** `POST /api/v1/payments/webhook/{provider}` cho phép không cần đăng nhập (`backend/src/main/java/com/rentgg/shared/security/SecurityConfig.java`, dòng 66). Việc xác thực chữ ký nằm trong `PaymentGateway.verifyCallback`. Đầu vào sai định dạng ném `IllegalArgumentException`. Các gateway thật nằm trong `backend/src/main/java/com/rentgg/payment/infrastructure/psp/` (`PayosGateway`, `VnpayGateway`, `MomoGateway`, `ZalopayGateway`). **Chưa kiểm chứng** với PSP thật: chưa có key sandbox (xem `docs/RentGG_Validation_Checklist.md`).
+**Webhook thanh toán.** `POST /api/v1/payments/webhook/{provider}` cho phép không cần đăng nhập (`backend/src/main/java/com/rentgg/shared/security/SecurityConfig.java`, dòng 66). Việc xác thực chữ ký nằm trong `PaymentGateway.verifyCallback`. Đầu vào sai định dạng ném `IllegalArgumentException`. Các gateway thật nằm trong `backend/src/main/java/com/rentgg/payment/infrastructure/psp/` (`PayosGateway`, `VnpayGateway`, `MomoGateway`, `ZalopayGateway`). **Chưa kiểm chứng** với PSP thật. Repo không có kết quả sandbox nào; `docs/RentGG_Validation_Checklist.md` mục B.7 hỏi về môi trường sandbox và chưa có câu trả lời trong repo.
 
-**Khiếu nại và thông báo pháp lý quá hạn.** Hai job `markDisputeDeadlinesOverdue` và `markLegalNoticeDeadlines` chỉ đánh dấu, không tự quyết định. Quyết định là việc của nhân viên hỗ trợ.
+**Khiếu nại và thông báo pháp lý quá hạn.** Theo `DisputeService.markDeadlinesOverdue` và `LegalNoticeService.markDeadlines`, hai job này chỉ đánh dấu quá hạn và ghi sự kiện. Chúng không khấu trừ cọc hay hoàn tiền. Quyết định là việc của nhân viên (`docs/RentGG_Staff_Guide.md`).
 
 ## 4. Sao lưu và khôi phục
 
@@ -93,7 +93,7 @@ Nguồn: `deploy/backup/backup.sh`, `deploy/restore.sh`.
 - Sao lưu ngay: `docker compose ... exec backup backup.sh now`.
 - `restore.sh` không có tham số: liệt kê bản sao lưu.
 - `restore.sh <file>`: yêu cầu gõ `YES`, rồi dừng app, khôi phục trong một transaction, và luôn bật lại app (trap). Khôi phục **ghi đè** toàn bộ DB hiện tại.
-- Sau khi khôi phục, script nhắc chạy đối soát ledger trước khi mở lại giao dịch: `GET /api/v1/admin/ledger/reconciliation` (`backend/src/main/java/com/rentgg/ledger/api/LedgerAdminController.java`, dòng 26).
+- Sau khi khôi phục, script nhắc chạy đối soát ledger trước khi mở lại giao dịch: `GET /api/v1/admin/ledger/reconciliation`. Đường dẫn ghép từ `@RequestMapping("/api/v1/admin/ledger")` (dòng 16) và `@GetMapping("/reconciliation")` (dòng 26) trong `backend/src/main/java/com/rentgg/ledger/api/LedgerAdminController.java`.
 - Quyền khôi phục: `restore.sh` dùng `--role=rentgg_migrator` (`docs/RentGG_Production_Deploy.md`, mục B1a).
 
 Đã kiểm thử: `docs/RentGG_Production_Deploy.md` mục B3 ghi kiểm thử backup và restore trên máy dev với S3Mock, gồm cả trường hợp file sai. **Chưa kiểm chứng** trên server thật và R2 thật.

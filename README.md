@@ -52,13 +52,13 @@ cd backend
 # Không có Docker: trỏ tới một DB trống (test sẽ clean + migrate DB này)
 TEST_DB_URL=jdbc:postgresql://localhost:5432/rentgg_test TEST_DB_USERNAME=rentgg TEST_DB_PASSWORD=rentgg_dev ./mvnw test
 ```
-31 test, bao phủ các kịch bản bắt buộc T1–T18 của §18.2 (đặt trùng đồng thời, ledger cân bằng theo ví dụ §7.4/§7.5, cọc riêng từng đơn, rút tiền song song, dual approval, cửa sổ xem credentials, 3 end mode, hủy đơn, khiếu nại, chiếm account, fail-closed theo game, job chạy lặp/song song) + test kiến trúc (ArchUnit, quy tắc §4.4) + unit test (tiền, AES-GCM, HMAC).
+Số test thay đổi theo thời điểm: chạy `./mvnw test` để có số hiện tại (xem `docs/RentGG_Dev_Guide.md` mục 0.6). Bao phủ các kịch bản bắt buộc T1–T18 của §18.2 (đặt trùng đồng thời, ledger cân bằng theo ví dụ §7.4/§7.5, cọc riêng từng đơn, rút tiền song song, dual approval, cửa sổ xem credentials, 3 end mode, hủy đơn, khiếu nại, chiếm account, fail-closed theo game, job chạy lặp/song song) + test kiến trúc (ArchUnit, quy tắc §4.4) + unit test (tiền, AES-GCM, HMAC).
 
 ## Cấu trúc
 `backend/src/main/java/com/rentgg/<module>/{api,application,domain,infrastructure}` — modular monolith theo §4.3:
 `identity`, `catalog`, `gameaccount`, `listing`, `order`, `payment`, `ledger`, `deposit`, `wallet`, `dispute`, `approval`, `notification`, `audit`, `shared`, `config`, `jobs`.
 
-Migration: `backend/src/main/resources/db/migration/V1..V7` (exclusion constraint chống đặt trùng, trigger append-only cho ledger/audit, constraint trigger cân bằng bút toán, CHECK four-eyes cho approval).
+Migration: `backend/src/main/resources/db/migration/` (V1–V37; danh sách và mục đích xem `docs/README.md`). Các migration nền gồm V1–V7 (exclusion constraint chống đặt trùng, trigger append-only cho ledger/audit, constraint trigger cân bằng bút toán, CHECK four-eyes cho approval).
 
 ## Khác biệt / bổ sung nhỏ so với tài liệu
 - Thêm `POST /orders/{id}/otp-note` (owner gửi mã OTP qua đơn, tự hết hạn sau 10 phút) — kênh "ghi chú trong đơn" mà UC-08 nhắc tới cho game `OWNER_ASSISTED_OTP`.
@@ -67,4 +67,4 @@ Migration: `backend/src/main/resources/db/migration/V1..V7` (exclusion constrain
 - Khiếu nại của người thuê (`RENTER_*`) chỉ mở được khi đơn còn `IN_RENTAL`, đúng bảng §6.5.
 
 ## Chưa làm (theo lộ trình)
-PSP thật (quyết định D1 — chỉ cần thêm một `PaymentGateway`), MFA cho staff, upload bằng chứng, các UC P1/P2. Các tham số theo game (cọc, hold, handover mode…) cần điền từ `docs/RentGG_Validation_Checklist.md` qua `POST /api/v1/admin/games`.
+PSP thật (quyết định D1 — chỉ cần thêm một `PaymentGateway`), upload bằng chứng, các UC P1/P2. Các tham số theo game (cọc, hold, handover mode…) cần điền từ `docs/RentGG_Validation_Checklist.md` qua `POST /api/v1/admin/games`.
