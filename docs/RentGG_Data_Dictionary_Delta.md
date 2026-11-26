@@ -40,7 +40,7 @@ Khi hoàn tiền thành công, `PaymentService.processRefund` ghi bút toán `RE
 
 ## 4. Thứ tự `created_at` không khớp thứ tự commit
 
-Trong ví và sổ cái, cột `created_at` của hai bút toán có thể đảo ngược so với thứ tự chúng được commit. Ví dụ đã thấy: một hoàn tiền có `created_at` muộn hơn nhưng được commit trước một thanh toán có `created_at` sớm hơn. Hệ quả: báo cáo sắp theo `created_at` có thể hiện số dư âm trong khi số dư thật không bao giờ âm. Khi cần số dư đúng, tính theo thứ tự commit (ví dụ dùng `xmin` của hàng, như đã làm trong kiểm thử). Cách tính số dư theo thiết kế xem §7.7. Nguồn: `docs/RentGG_Manual_Test_Report.md` mục 3.3.
+Trong ví và sổ cái, cột `created_at` của hai bút toán có thể đảo ngược so với thứ tự chúng được commit. Đã quan sát: một hoàn tiền có `created_at` muộn hơn nhưng được commit trước một thanh toán có `created_at` sớm hơn. Khi sắp theo `created_at`, số dư tính đến một thời điểm có thể âm; khi tính theo thứ tự commit, lần kiểm thử này không thấy số âm. Tài liệu này không khuyến nghị phương pháp xác định thứ tự commit. Nếu báo cáo cần thứ tự đúng, vấn đề nằm ở thiết kế, không ở tài liệu. Nguồn: `docs/RentGG_Manual_Test_Report.md` mục 3.3. Cách tính số dư theo thiết kế xem §7.7.
 
 ## 5. Trạng thái cọc (`deposits.status`)
 

@@ -4,9 +4,11 @@ Spring Boot 3.3.5, Java 21, PostgreSQL 16, Flyway. Mã nằm trong `src/main/jav
 
 ## Cấu trúc module
 
-Mỗi thư mục con là một module, theo `docs/RentGG_System_Design_v1.2.md` §4.3:
+Mỗi thư mục con của `src/main/java/com/rentgg/` là một module (19 module, kiểm bằng `ls`):
 
 `approval`, `audit`, `catalog`, `config`, `deposit`, `dispute`, `gameaccount`, `helpdesk`, `identity`, `jobs`, `ledger`, `legal`, `listing`, `notification`, `order`, `payment`, `settings`, `shared`, `wallet`.
+
+`docs/RentGG_System_Design_v1.2.md` §4.3 chỉ liệt kê 15 module. Bốn module `helpdesk`, `jobs`, `legal`, `settings` có trong mã nhưng không có trong bảng §4.3.
 
 Quy tắc phụ thuộc giữa module nằm trong `docs/RentGG_System_Design_v1.2.md` §4.4. Có test `src/test/java/com/rentgg/ArchitectureTest.java`; nội dung chưa được đọc trong lượt này.
 
@@ -14,10 +16,10 @@ Mỗi module thường có `api/` (controller), `application/` (service), `domai
 
 ## Chạy local
 
-Cần PostgreSQL 16 đang chạy. Cấu hình mặc định nằm trong `src/main/resources/application.yml`, cổng `8080`.
+Cần PostgreSQL 16 đang chạy. Cấu hình mặc định nằm trong `src/main/resources/application.yml`, cổng `8080`. `application.yml` không đặt profile mặc định, nên lệnh dưới đây không tự bật `dev`.
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 Profile `dev` bật dữ liệu mẫu (`DevDataSeeder`), đồng hồ có thể tua (`/api/v1/dev/time/*`), và các endpoint chỉ dev. Profile `dev` không được đi cùng `prod` hoặc `staging`: `StartupSafetyCheck` sẽ từ chối khởi động.

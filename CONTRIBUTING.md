@@ -52,11 +52,9 @@ Không có workflow cho `android/`.
 ## Thay đổi về bảo mật và tiền
 
 - Không thêm bí mật thật vào repo. Xem `SECURITY.md`.
-- Thay đổi về xác thực hai bước (MFA) cho nhân viên cần chủ dự án phê duyệt rõ ràng.
-- Thay đổi về ledger, phê duyệt kép, hoặc hoàn tiền cần test bao phủ luồng đó.
+- Thay đổi về xác thực hai bước (MFA) cho nhân viên cần chủ dự án phê duyệt rõ ràng. (Yêu cầu này do chủ dự án nêu trong phiên làm việc; không có trong `CLAUDE.md` hay `AGENTS.md`.)
 
 ## Tài liệu
 
 - Mục lục: `docs/README.md`.
 - Khi tài liệu khác mã, sửa tài liệu theo mã, trừ khi thay đổi mã là chủ đích và đã được ghi nhận.
-- Không tạo PR nếu chưa được yêu cầu.

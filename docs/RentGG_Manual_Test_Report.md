@@ -2,7 +2,7 @@
 
 Báo cáo này lấy từ ma trận kiểm thử (`results.json`, bảng 106 hàng cố định) và nhật ký phát hiện. Mỗi kết quả là một lần chạy thật trên backend dev chạy trong container, trình duyệt tự động. Đây không phải kiểm thử trên production, không có thiết bị thật, không có PSP thật.
 
-Bằng chứng (video `.webm`, ảnh chụp) lưu ngoài repo, không commit vào repo. Nếu cần xem, hỏi người chạy lại kịch bản.
+Bằng chứng (video `.webm`, ảnh chụp) nằm trong thư mục scratchpad của phiên làm việc, ngoài repo, chưa commit. Thư mục này là tạm thời: phiên kết thúc hoặc container bị thu hồi có thể làm mất file. Hiện chưa có bản lưu bền. Nếu cần giữ bằng chứng, cần sao chép ra nơi lưu lâu dài.
 
 ## 1. Tổng kết
 
@@ -155,7 +155,7 @@ Phần này tóm tắt `findings.md` của lần kiểm thử. Quyết định s
 
 - Ghi chú khiếu nại: khi người thuê chưa xem thông tin đăng nhập, khiếu nại loại đăng nhập bị từ chối `422 COMPLAINT_WINDOW_CLOSED`. Đây là hành vi đúng của backend. Có thể thêm gợi ý "hãy xem thông tin đăng nhập trước" trên form (tùy chọn).
 - A17: tài khoản `finance@` nhận 403 từ `GET /api/v1/games` khi giao diện tải danh sách game (ma trận ghi là menu/trang tải danh sách game). Chưa xác định vì sao; cần xem lại RBAC của endpoint này.
-- Sổ cái và số dư ví: `created_at` không khớp thứ tự commit. Báo cáo sắp theo `created_at` có thể hiện số âm giả (ví dụ −488.000 ₫ cho một ví mà số dư thật không bao giờ âm). Số dư đúng tính theo thứ tự commit. Số liệu 357.000 ₫ ghi trước đó không tái tạo được.
+- Sổ cái và số dư ví: `created_at` không khớp thứ tự commit. Báo cáo sắp theo `created_at` có thể hiện số âm giả (ví dụ −488.000 ₫ ở một thời điểm, trong khi tính theo thứ tự commit không thấy số âm). Số dư đúng tính theo thứ tự commit. Số liệu 357.000 ₫ ghi trước đó không tái tạo được.
 
 ## 4. Chưa kiểm thử được
 
