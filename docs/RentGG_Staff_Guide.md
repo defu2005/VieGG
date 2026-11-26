@@ -15,9 +15,9 @@ Nguồn: `backend/src/main/resources/db/migration/V8__rbac_roles_permissions.sql
 | `ADMIN` | Quản trị | Quản trị nền tảng |
 | `FINANCE` | Tài chính | Chi trả, đối soát, điều chỉnh sổ cái |
 
-Quyền không nằm cứng trong code. Bảng `permissions` và `role_permissions` lưu chúng. Trang Vai trò (`/admin/roles`, `frontend/src/App.tsx`) được bảo vệ bằng `role:read`. Quyền sửa vai trò trong V8 là `role:manage`. Một người có thể có nhiều vai trò (`user_roles`).
+Mã quyền được khai báo trong code (`backend/src/main/java/com/rentgg/shared/security/Permission.java`) và được đồng bộ vào bảng `permissions` khi khởi động (`backend/src/main/java/com/rentgg/identity/application/PermissionCatalogSync.java`). Việc gán quyền cho vai trò nằm trong bảng `role_permissions`, đổi được trong trang Vai trò. Trang Vai trò (`/admin/roles`, `frontend/src/App.tsx`) được bảo vệ bằng `role:read`. Quyền sửa vai trò trong V8 là `role:manage`. Một người có thể có nhiều vai trò (`user_roles`).
 
-Các migration sau V8 cũng thêm quyền cho vai trò: `V22` (`setting:read`, `setting:update`), `V28` (`helpdesk:handle`), `V32` (`audit:read`), `V36` (`listing:appeal_review`). Danh sách quyền đầy đủ là kết quả của mọi migration này, không phải chỉ V8.
+Migration V8 seed các quyền ban đầu. Các migration sau thêm quyền cho vai trò: `V22` (`setting:read`, `setting:update`), `V28` (`helpdesk:handle`), `V32` (`audit:read`), `V36` (`listing:appeal_review`). Đã đối chiếu: mọi mã quyền viết thẳng trong `Permission.java` đều xuất hiện trong migration; các mã `approval:request:<loại>` và `approval:decide:<loại>` được ghép từ tiền tố và tên loại trong hàm của `Permission.java`. Lượt này không đối chiếu quyền nào được gán cho vai trò mà không có trong migration.
 
 ## 2. Màn hình và quyền truy cập
 
@@ -47,7 +47,7 @@ Nguồn: `V8__rbac_roles_permissions.sql` và các migration bổ sung ở mục
 | `ADMIN` | Gồm hầu hết quyền của SUPPORT, cộng: quản lý game (`game:create`, `game:update`, `game:change_tos`), duyệt/từ chối/đình chỉ tin, xác minh khôi phục và KYC (`game_account:verify_recovery`, `user:kyc_decide`), xem danh sách rút tiền (`withdrawal:list_all`), sổ cái (`ledger:read`), quản lý vai trò (`role:manage`, `role:assign`), cấu hình (`setting:update`), tra cứu audit (`audit:read`), duyệt cả bốn loại yêu cầu phê duyệt (mục 4), và `dev:run_jobs` (chỉ có ý nghĩa ở dev) |
 | `FINANCE` | Xem tin (`listing:read_any`), danh sách rút tiền, xem thông tin ngân hàng khi rút (`withdrawal:read_bank_details`), đánh dấu đã chi hoặc chi thất bại (`withdrawal:mark_paid`, `withdrawal:mark_failed`), sổ cái (`ledger:read`), gửi và duyệt yêu cầu `SELLER_HOLD_EARLY_RELEASE` và `LEDGER_ADJUSTMENT`, xem cấu hình (`setting:read`) |
 
-Theo V8, nhân viên không có `credential:view_own` (quyền này dành cho người thuê xem thông tin đăng nhập của đơn đang thuê), và `ADMIN` không có `withdrawal:read_bank_details`.
+Theo V8, các vai trò SUPPORT, ADMIN và FINANCE không có `credential:view_own` (quyền xem thông tin đăng nhập của đơn đang thuê). Vai trò USER là mặc định của mọi tài khoản và có quyền này, nên tài khoản nhân viên vẫn giữ nó qua vai trò USER. `ADMIN` không có `withdrawal:read_bank_details`.
 
 ## 4. Phê duyệt kép
 
@@ -96,7 +96,7 @@ Ghi chú: ma trận ghi tên tài khoản thực hiện khi có. Với các dòn
 - KYC: `A75` duyệt, `A76` từ chối.
 
 **Tài chính (`FINANCE`)**
-- Đối soát: `A17`, `A17-fix` (sổ cái cân bằng).
+- Đối soát: `A17`, `A17-fix` (sổ cái cân bằng). Quyền `ledger:read` cũng có ở ADMIN; ma trận không ghi tài khoản thực hiện. Hàng A17 còn ghi finance nhận 403 từ `GET /api/v1/games`, chưa điều tra.
 - Rút tiền: `A71` finance đánh dấu thất bại với lý do, số dư khả dụng được hoàn. `B09` đánh dấu đã chi (quyền `withdrawal:mark_paid` chỉ FINANCE có theo V8; ma trận không ghi tài khoản). Phía chủ account gửi yêu cầu rút là `B08`, không phải thao tác của nhân viên.
 - Mở màn duyệt không gọi API bị cấm: `FX2`, `FX4-finance`.
 
