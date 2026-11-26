@@ -38,9 +38,11 @@ Khi hoàn tiền thành công, `PaymentService.processRefund` ghi bút toán `RE
 
 Đây là phần liên quan tới câu hỏi hoàn tiền về ví thay vì về PSP. Xem `docs/README.md`, mục Mâu thuẫn số 3.
 
-## 4. Thứ tự `created_at` không khớp thứ tự commit
+## 4. Thứ tự `created_at` không khớp thứ tự ghi
 
-Trong ví và sổ cái, cột `created_at` của hai bút toán có thể đảo ngược so với thứ tự chúng được commit. Đã quan sát: một hoàn tiền có `created_at` muộn hơn nhưng được commit trước một thanh toán có `created_at` sớm hơn. Khi sắp theo `created_at`, số dư tính đến một thời điểm có thể âm; khi tính theo thứ tự commit, lần kiểm thử này không thấy số âm. Tài liệu này không khuyến nghị phương pháp xác định thứ tự commit. Nếu báo cáo cần thứ tự đúng, vấn đề nằm ở thiết kế, không ở tài liệu. Nguồn: `docs/RentGG_Manual_Test_Report.md` mục 3.3. Cách tính số dư theo thiết kế xem §7.7.
+Đã thấy trong kịch bản chạy trên dev: một hoàn tiền có `created_at` 04:44:01 được ghi trước một thanh toán có `created_at` 04:43:49. Khi sắp theo `created_at`, số dư tính đến một thời điểm có thể âm (ví dụ −488.000 ₫ trong báo cáo). Thứ tự được dùng để xác nhận số dư là `xmin`, tức transaction ID, không phải thứ tự commit: `xmin` được gán khi transaction ghi lần đầu nên hai thứ này có thể khác nhau.
+
+Nguyên nhân chưa được chứng minh. Một khả năng: `created_at` của bút toán lấy từ đồng hồ nghiệp vụ `Clock` (`backend/src/main/java/com/rentgg/ledger/application/LedgerService.java`), không phải giá trị mặc định của DB. Trên dev, đồng hồ này có thể bị tua và đặt lại (xem `RentGG_Manual_Test_Report.md` mục 5), nên thời gian ghi có thể lệch. Chưa biết hiện tượng này có xảy ra ngoài dev hay không. Nguồn: `docs/RentGG_Manual_Test_Report.md` mục 3.3. Cách tính số dư theo thiết kế xem §7.7.
 
 ## 5. Trạng thái cọc (`deposits.status`)
 

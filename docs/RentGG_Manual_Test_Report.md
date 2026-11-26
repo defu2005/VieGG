@@ -155,7 +155,7 @@ Phần này tóm tắt `findings.md` của lần kiểm thử. Quyết định s
 
 - Ghi chú khiếu nại: khi người thuê chưa xem thông tin đăng nhập, khiếu nại loại đăng nhập bị từ chối `422 COMPLAINT_WINDOW_CLOSED`. Đây là hành vi đúng của backend. Có thể thêm gợi ý "hãy xem thông tin đăng nhập trước" trên form (tùy chọn).
 - A17: tài khoản `finance@` nhận 403 từ `GET /api/v1/games` khi giao diện tải danh sách game (ma trận ghi là menu/trang tải danh sách game). Chưa xác định vì sao; cần xem lại RBAC của endpoint này.
-- Sổ cái và số dư ví: `created_at` không khớp thứ tự commit. Báo cáo sắp theo `created_at` có thể hiện số âm giả (ví dụ −488.000 ₫ ở một thời điểm, trong khi tính theo thứ tự commit không thấy số âm). Số dư đúng tính theo thứ tự commit. Số liệu 357.000 ₫ ghi trước đó không tái tạo được.
+- Sổ cái và số dư ví: `created_at` không khớp thứ tự ghi. Đã thấy trên dev: một hoàn tiền có `created_at` 04:44:01 được ghi trước một thanh toán có `created_at` 04:43:49. Báo cáo sắp theo `created_at` có thể hiện số âm (ví dụ −488.000 ₫). Thứ tự dùng để xác nhận số dư là `xmin` (transaction ID), không phải thứ tự commit. `created_at` lấy từ đồng hồ nghiệp vụ `Clock`, không phải giá trị mặc định của DB, nên có thể lệch khi đồng hồ dev bị tua (xem mục 5). Nguyên nhân chưa được chứng minh; chưa biết có xảy ra ngoài dev không. Số liệu 357.000 ₫ ghi trước đó không tái tạo được.
 
 ## 4. Chưa kiểm thử được
 

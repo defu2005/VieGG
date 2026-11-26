@@ -5,8 +5,8 @@ Bảng này lấy từ khai báo `@RequestMapping`, `@GetMapping`, `@PostMapping
 ## Cách lấy và giới hạn
 
 - Không xuất OpenAPI từ springdoc. Backend và PostgreSQL không chạy trong container lượt này, nên chưa thử export. Nếu cần OpenAPI chính xác, chạy backend profile `dev` rồi lấy `/v3/api-docs`.
-- Phân tích bằng biểu thức chính quy trên mã, không phải AST. Số annotation ánh xạ trong mã là 176: 26 ở cấp lớp (kể cả lớp lồng `DevPaymentController`) và 150 ở cấp phương thức, khớp số dòng bảng. Trường hợp đã kiểm tay: `DevPaymentController` là lớp lồng có base riêng; `StaffUserController` dùng hằng `ANY_STAFF_LOOKUP`; `PaymentController.webhook` khai báo bằng `@RequestMapping(method=...)` và nhận cả GET lẫn POST.
-- Đối chiếu với `RentGG_System_Design_v1.2.md` §11.2: 54 dòng trong §11.2; 54 có trong controller; 0 không có. Controller có 150 cặp phương thức–đường dẫn, trong đó 96 không có trong §11.2. §11.2 là danh sách một phần, không phải danh sách đầy đủ.
+- Phân tích bằng biểu thức chính quy trên mã, không phải AST. Đếm lại: 176 dòng khớp annotation ánh xạ (grep thô, kể cả trong comment). Sau khi bỏ comment: 26 annotation cấp lớp (gồm lớp lồng `DevPaymentController`) và 150 annotation cấp phương thức. Bảng có 151 dòng vì hai lý do: `PaymentController.webhook` là một annotation cho cả GET và POST, và `POST /tickets/{id}/messages` có hai phương thức (JSON và multipart).
+- Đối chiếu với `RentGG_System_Design_v1.2.md` §11.2: 54 dòng trong §11.2; 54 có trong controller; 0 không có. Controller có 151 dòng, tương ứng 150 cặp phương thức–đường dẫn riêng (`POST /tickets/{id}/messages` có hai phương thức, JSON và multipart), trong đó 96 cặp không có trong §11.2. §11.2 là danh sách một phần, không phải danh sách đầy đủ.
 - `AuthorizationCoverageTest` (`backend/src/test/java/com/rentgg/AuthorizationCoverageTest.java`) kiểm tra mọi endpoint `/admin`, `/support`, `/finance`, `/staff` đều có `@PreAuthorize` (kể cả ở cấp lớp). Test chỉ kiểm tra **có** annotation, không kiểm tra biểu thức đúng hay không. Biểu thức trong bảng dưới chưa đối chiếu với ma trận quyền của vai trò.
 - Các endpoint không có `@PreAuthorize`: SecurityConfig cho phép đăng nhập là đủ, và kiểm tra quyền sở hữu nằm trong service. Đã đối chiếu số dòng `@PreAuthorize` của từng controller với bảng này (khớp; hai lớp `StaffUserController` và `LedgerAdminController` có `@PreAuthorize` cấp lớp, các dòng của chúng được tính kế thừa). Chưa kiểm chứng từng endpoint bằng cách gọi thật.
 - Cột "Chỉ dev" đánh dấu endpoint có `@Profile` chứa `dev`. Lưu ý: các endpoint `/dev/time/*` không có `@PreAuthorize`. Theo mã, mọi người dùng đăng nhập đều gọi được trong profile dev. Chưa kiểm chứng bằng cách chạy thật.
@@ -145,6 +145,7 @@ Bảng này lấy từ khai báo `@RequestMapping`, `@GetMapping`, `@PostMapping
 | GET | `/tickets/{id}/attachments/{attachmentId}` | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
 | GET | `/tickets/{id}/messages` | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
 | POST | `/tickets/{id}/messages` | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
+| POST | `/tickets/{id}/messages` (multipart, field `file`) | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
 | POST | `/tickets/{id}/read` | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
 | POST | `/tickets/{id}/status` | Đăng nhập (SecurityConfig `/api/v1/**`); không có `@PreAuthorize` |  |
 
@@ -188,7 +189,7 @@ Bảng này lấy từ khai báo `@RequestMapping`, `@GetMapping`, `@PostMapping
 | POST | `/admin/listings/{id}/reject` | `@PreAuthorize(hasAuthority('listing:reject'))` |  |
 | POST | `/admin/listings/{id}/suspend` | `@PreAuthorize(hasAuthority('listing:suspend'))` |  |
 | POST | `/listings` | `@PreAuthorize(hasAuthority('listing:manage_own'))` |  |
-| GET | `/listings/mine` | Công khai ở SecurityConfig, vì `GET /listings/*` khớp cả `/listings/mine`; controller cần người dùng đăng nhập. Hành vi khi không đăng nhập chưa kiểm chứng; không có `@PreAuthorize` |  |
+| GET | `/listings/mine` | Công khai ở SecurityConfig, vì `GET /listings/*` khớp cả `/listings/mine`. Controller gọi `CurrentUser.id()`: không có JWT thì ném `ApiException` 401 `UNAUTHENTICATED` (đọc từ mã, chưa gọi thật). Không có `@PreAuthorize` |  |
 | GET | `/listings/search` | Công khai (SecurityConfig) |  |
 | GET | `/listings/{id}` | Công khai (SecurityConfig) |  |
 | PUT | `/listings/{id}` | `@PreAuthorize(hasAuthority('listing:manage_own'))` |  |
